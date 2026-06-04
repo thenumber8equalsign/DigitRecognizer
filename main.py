@@ -1,4 +1,4 @@
-# This python script converts the MNIST dataset to the stuff 
+# This python script converts the MNIST dataset to the stuff
 
 from tensorflow.keras.datasets import mnist
 
@@ -7,7 +7,7 @@ from tensorflow.keras.datasets import mnist
 import struct
 
 for i in range(len(X_train)):
-    with open(f"train/{i}-{Y_train[i]}.bin", "wb") as binary_file:
+    with open(f"trainingData/{i}-{Y_train[i]}.bin", "wb") as binary_file:
         binary_file.write(struct.pack("<B", Y_train[i]))
         binary_file.write(
             b"\x1c\x1c"
@@ -17,7 +17,7 @@ for i in range(len(X_train)):
                 binary_file.write(struct.pack("<B", X_train[i][j][k]))
 
 for i in range(len(X_test)):
-    with open(f"test/{i}-{Y_test[i]}.bin", "wb") as binary_file:
+    with open(f"testingData/{i}-{Y_test[i]}.bin", "wb") as binary_file:
         binary_file.write(struct.pack("<B", Y_test[i]))
         binary_file.write(
             b"\x1c\x1c"
