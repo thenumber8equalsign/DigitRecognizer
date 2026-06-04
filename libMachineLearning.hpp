@@ -168,6 +168,11 @@ namespace MachineLearning {
                 weights.data = std::vector<std::vector<double>>(numNeurons, std::vector<double>(prev->neurons.size()));
             }
 
+            Layer(size_t numNeurons) {
+                neurons.resize(numNeurons);
+                biases.resize(numNeurons);
+            }
+
             const MachineLearning::matrix getWeights() const {
                 return weights;
             }
