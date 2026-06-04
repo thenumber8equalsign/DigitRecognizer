@@ -152,12 +152,12 @@ namespace MachineLearning {
 
     class Layer {
         private:
-            std::weak_ptr<Layer> prev;
-
             std::vector<double> neurons;
             MachineLearning::matrix weights;
             std::vector<double> biases;
         public:
+            std::weak_ptr<Layer> prev;
+
             Layer(std::shared_ptr<Layer> prev, size_t numNeurons) {
                 this->prev = prev;
                 neurons.resize(numNeurons);
@@ -214,6 +214,20 @@ namespace MachineLearning {
     };
 
     class Model {
-        std::vector<std::shared_ptr<Layer>> layers;
+        public:
+            std::vector<std::shared_ptr<Layer>> layers;
+
+            Model() {}
+            Model(std::vector<std::shared_ptr<Layer>> layers) {
+                this->layers = layers;
+            }
+
+            // connect all of the prev pointers in the layer
+            // it literally won't do anything if layers is empty
+            void linkLayers() {
+                for (size_t i = 1; i < layers.size(); ++i) {
+                    layers[i]->prev = layers[i-1];
+                }
+            }
     };
 }

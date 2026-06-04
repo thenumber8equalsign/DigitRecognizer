@@ -21,7 +21,7 @@ int main() {
         std::cout << "Fail identity matrix by [1,2,3]" << std::endl;
     }
 
-    // Test from wikipedia
+    // Test from wikipedia article for matrix multiplication
     mat = MachineLearning::matrix();
     MachineLearning::matrix b;
 
