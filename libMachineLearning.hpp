@@ -1,6 +1,18 @@
 #pragma once
 #include <vector>
 #include <stdexcept>
+#include <memory>
+
+inline std::vector<double> operator + (const std::vector<double>& lhs, const std::vector<double>& rhs) {
+    if (lhs.size() != rhs.size()) throw std::invalid_argument("sizes not equal");
+
+    std::vector<double> res(lhs.size());
+    for (size_t i = 0; i < res.size(); ++i) {
+        res[i] = lhs[i] + rhs[i];
+    }
+
+    return res;
+}
 
 namespace MachineLearning {
     double sigmoid(const double x);
@@ -27,10 +39,10 @@ namespace MachineLearning {
         }
 
         std::vector<double> colAt(const size_t j) const {
-            std::vector<double> col;
+            std::vector<double> col(data.size());
             try {
                 for (size_t i = 0; i < data.size(); ++i) {
-                    col.push_back(data.at(i).at(j));
+                    col.at(i)=(data.at(i).at(j));
                 }
             } catch (std::out_of_range) {
                 throw std::runtime_error("malformed matrix");
@@ -39,9 +51,9 @@ namespace MachineLearning {
         }
 
         std::vector<double> unsafeColAt(const size_t j) const {
-            std::vector<double> col;
+            std::vector<double> col(data.size());
             for (size_t i = 0; i < data.size(); ++i) {
-                col.push_back(data[i][j]);
+                col[i]=(data[i][j]);
             }
             return col;
         }
@@ -136,5 +148,65 @@ namespace MachineLearning {
                 throw std::runtime_error("malformed matrix");
             }
         }
+    };
+
+    class Layer {
+        private:
+            std::weak_ptr<Layer> prev;
+
+            std::vector<double> neurons;
+            MachineLearning::matrix weights;
+            std::vector<double> biases;
+        public:
+            Layer(std::shared_ptr<Layer> prev, size_t numNeurons) {
+                this->prev = prev;
+                neurons.resize(numNeurons);
+                biases.resize(numNeurons);
+
+                // The number of rows is the number of neurons here,
+                // the number of columns is the number of neurons in the previous layer
+                weights.data = std::vector<std::vector<double>>(numNeurons, std::vector<double>(prev->neurons.size()));
+            }
+
+            const MachineLearning::matrix getWeights() const {
+                return weights;
+            }
+
+            const std::vector<double>& getNeurons() const {
+                return neurons;
+            }
+
+            const std::vector<double> getBiases() const {
+                return biases;
+            }
+
+            double& weightsAt(size_t row, size_t col) {
+                return weights.data.at(row).at(col);
+            }
+
+            double& neuronsAt(size_t i) {
+                // only allow setting a neuron if we are the starting layer
+                std::shared_ptr<Layer> tmp = prev.lock();
+                if (tmp) {
+                    throw std::runtime_error("Can not set activation of a hidden layer");
+                }
+
+                return neurons.at(i);
+            }
+
+            double& biasesAt(size_t i) {
+                return biases.at(i);
+            }
+
+            void compute() {
+                // neurons = sigmoid(weights*(neuronsPrev) + bias)
+                std::shared_ptr<Layer> prev = this->prev.lock();
+                std::vector<double> z = weights * prev->neurons + biases;
+                neurons = sigmoid(z);
+            }
+    };
+
+    class Model {
+        std::vector<std::shared_ptr<Layer>> layers;
     };
 }
