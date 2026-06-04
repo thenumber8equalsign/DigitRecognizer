@@ -46,5 +46,41 @@ int main() {
         std::cout << "Fail example from wikipedia" << std::endl;
     }
 
+
+    mat = MachineLearning::matrix();
+    mat.data.push_back({0, 0, 1});
+    mat.data.push_back({0, 1, 0});
+    mat.data.push_back({1, 0, 0});
+
+    vec = mat * vec;
+    if (vec[0] == 3 && vec[1] == 2 && vec[2] == 1) {
+        std::cout << "Pass reverse vector matrix test" << std::endl;
+    } else {
+        std::cout << "Fail reverse vector matrix test" << std::endl;
+    }
+
+    // test B
+    // -2R1 + R2 -> R2
+    /* [[1 0 0
+     * [-2 1 0]
+     * [ 0 0 1]]*/
+
+    mat = MachineLearning::matrix();
+    mat.data.push_back({1, 0, 0});
+    mat.data.push_back({-2, 1, 0});
+    mat.data.push_back({0, 0, 1});
+
+
+    expected = MachineLearning::matrix();
+    expected.data.push_back({1, 2, 1});
+    expected.data.push_back({0, -1, -1});
+    expected.data.push_back({4, 2, 2});
+
+    if (mat * b == expected) {
+        std::cout << "pass row op" << std::endl;
+    } else {
+        std::cout << "fail row op" << std::endl;
+    }
+
     return 0;
 }
