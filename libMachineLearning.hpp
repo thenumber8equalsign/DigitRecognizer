@@ -2,6 +2,7 @@
 #include <vector>
 #include <stdexcept>
 #include <memory>
+#include <array>
 
 inline std::vector<double> operator + (const std::vector<double>& lhs, const std::vector<double>& rhs) {
     if (lhs.size() != rhs.size()) throw std::invalid_argument("sizes not equal");
@@ -187,21 +188,21 @@ namespace MachineLearning {
                 return biases;
             }
 
-            double& weightsAt(size_t row, size_t col) {
+            double& weightAt(size_t row, size_t col) {
                 return weights.data.at(row).at(col);
             }
 
-            double& neuronsAt(size_t i) {
+            double& neuronAt(size_t i) {
                 // only allow setting a neuron if we are the starting layer
                 std::shared_ptr<Layer> tmp = prev.lock();
                 if (tmp) {
-                    throw std::runtime_error("Can not set activation of a hidden layer");
+                    throw std::runtime_error("Can not set activation of a hidden or output layer");
                 }
 
                 return neurons.at(i);
             }
 
-            double& biasesAt(size_t i) {
+            double& biaseAt(size_t i) {
                 return biases.at(i);
             }
 
@@ -213,9 +214,14 @@ namespace MachineLearning {
             }
     };
 
+    typedef std::array<std::array<double, 28>, 28> Image;
+
     class Model {
         public:
             std::vector<std::shared_ptr<Layer>> layers;
+
+            // The char is the label
+            std::vector<std::pair<Image, char>> trainingData;
 
             Model() {}
             Model(std::vector<std::shared_ptr<Layer>> layers) {
@@ -228,6 +234,41 @@ namespace MachineLearning {
                 for (size_t i = 1; i < layers.size(); ++i) {
                     layers[i]->prev = layers[i-1];
                 }
+            }
+
+            double computeCost() {
+                // ASSUME THAT LAYERS COMPLIES (too lazy to check)
+                // and we have training data
+                // 784 inputs, 10 outputs
+                // first, set the input layers
+
+                double cost = 0.0;
+                for (size_t i = 0; i < trainingData.size(); ++i) {
+                    auto inputLayer = layers.at(0);
+                    std::array<double, 10> expectedOutput;
+                    for (size_t j = 0; j < 10; ++j) {
+                        expectedOutput[j] = (j == trainingData.at(i).second - '0') ? 1.0 : 0.0;
+                    }
+
+                    for (size_t j = 0; j < trainingData.at(0).first.size() * trainingData.at(0).first.at(0).size(); ++j) {
+                        // j / numCols is the row
+                        // j % numCols is the col
+                        // puttin' this here cuz i always forget how to access a 2d array with a flattened index
+                        inputLayer->neuronAt(j) = trainingData.at(i).first.at(j/28).at(j%28);
+                    }
+
+                    // Now we will compute all the layers
+                    for (size_t j = 1; j < layers.size(); ++j) {
+                        layers.at(j)->compute();
+                    }
+
+                    auto lastLayer = layers.at(layers.size() - 1);
+                    // C = (expctd - out)^2 + ...
+                    for (size_t j = 0; j < expectedOutput.size(); ++j) {
+                        cost += (expectedOutput.at(j) - lastLayer->neuronAt(j)) * (expectedOutput.at(j) - lastLayer->neuronAt(j));
+                    }
+                }
+                return cost / trainingData.size(); // average of the cost for all the training data
             }
     };
 }
