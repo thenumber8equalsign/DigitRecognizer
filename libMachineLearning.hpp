@@ -115,6 +115,26 @@ namespace MachineLearning {
                 throw std::runtime_error("malformed matrix");
             }
         }
+
+        bool operator == (const matrix& other) const {
+            try {
+                if (data.size() == 0 || data.at(0).size() == 0 || other.data.size() == 0 || other.data.at(0).size() == 0) {
+                    throw std::runtime_error("malformed matrix");
+                }
+
+                if (data.size() != other.data.size() || data.at(0).size() != other.data.at(0).size()) {
+                    return false;
+                }
+
+                for (size_t i = 0; i < data.size(); ++i) {
+                    for (size_t j = 0; j < data.at(0).size(); ++j) {
+                        if (other.data.at(i).at(j) != data.at(i).at(j)) return false;
+                    }
+                }
+                return true;
+            } catch (std::out_of_range) {
+                throw std::runtime_error("malformed matrix");
+            }
+        }
     };
-    typedef struct matrix matrix;
 }

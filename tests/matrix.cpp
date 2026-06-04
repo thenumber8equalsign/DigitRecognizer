@@ -1,6 +1,50 @@
 #include <iostream>
+#include <vector>
 #include "../libMachineLearning.hpp"
 
 int main() {
     MachineLearning::matrix mat;
+    std::vector<double> vec;
+    vec.push_back(1);
+    vec.push_back(2);
+    vec.push_back(3);
+
+    mat.data.push_back({1, 0, 0});
+    mat.data.push_back({0, 1, 0});
+    mat.data.push_back({0, 0, 1});
+
+    vec = mat * vec;
+
+    if (vec[0] == 1 && vec[1] == 2 && vec[2] == 3) {
+        std::cout << "Pass identity matrix by [1,2,3]" << std::endl;
+    } else {
+        std::cout << "Fail identity matrix by [1,2,3]" << std::endl;
+    }
+
+    // Test from wikipedia
+    mat = MachineLearning::matrix();
+    MachineLearning::matrix b;
+
+    mat.data.push_back({1, 0, 1});
+    mat.data.push_back({2, 1, 1});
+    mat.data.push_back({0, 1, 1});
+    mat.data.push_back({1, 1, 2});
+
+    b.data.push_back({1, 2, 1});
+    b.data.push_back({2, 3, 1});
+    b.data.push_back({4, 2, 2});
+
+    MachineLearning::matrix expected;
+    expected.data.push_back({5, 4, 3});
+    expected.data.push_back({8, 9, 5});
+    expected.data.push_back({6, 5, 3});
+    expected.data.push_back({11, 9, 6});
+
+    if (mat * b == expected) {
+        std::cout << "Pass example from wikipedia" << std::endl;
+    } else {
+        std::cout << "Fail example from wikipedia" << std::endl;
+    }
+
+    return 0;
 }
