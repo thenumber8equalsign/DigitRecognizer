@@ -173,6 +173,8 @@ namespace MachineLearning {
                 biases.resize(numNeurons);
             }
 
+            Layer() {}
+
             const MachineLearning::matrix getWeights() const {
                 return weights;
             }
