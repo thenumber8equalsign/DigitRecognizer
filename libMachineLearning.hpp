@@ -23,14 +23,14 @@ namespace MachineLearning {
 
     double dot(const std::vector<double>& a, const std::vector<double>& b);
 
-    struct matrix {
+    struct Matrix {
         std::vector<std::vector<double>> data;
 
-        matrix(const size_t r, const size_t c) {
+        Matrix(const size_t r, const size_t c) {
             data = std::vector<std::vector<double>>(r, std::vector<double>(c, 0));
         }
 
-        matrix() {}
+        Matrix() {}
 
         std::vector<double>& operator [] (const size_t i) {
             return data[i];
@@ -61,11 +61,11 @@ namespace MachineLearning {
         }
 
 
-        matrix operator * (const double scalar) const {
-            matrix result;
+        Matrix operator * (const double scalar) const {
+            Matrix result;
 
             try {
-                result = matrix(data.size(), data.at(0).size());
+                result = Matrix(data.size(), data.at(0).size());
             } catch (std::out_of_range) {
                 throw std::runtime_error("malformed matrix");
             }
@@ -84,7 +84,7 @@ namespace MachineLearning {
         }
 
 
-        matrix& operator *= (const double scalar) {
+        Matrix& operator *= (const double scalar) {
             for (size_t i = 0; i < data.size(); ++i) {
                 for (size_t j = 0; j < data[i].size(); ++j) {
                     data.at(i).at(j) *= scalar;
@@ -93,13 +93,13 @@ namespace MachineLearning {
             return *this;
         }
 
-        matrix operator * (const matrix& other) const {
+        Matrix operator * (const Matrix& other) const {
             try {
                 // Check restrictions (# col here has to be # row there)
                 if (data.at(0).size() != other.data.size()) {
                     throw std::domain_error("undefined"); // Domain error was the closest error type I could find, so I use it cuz i dont wanna make my own
                 }
-                matrix mat(data.size(), other.data.at(0).size());
+                Matrix mat(data.size(), other.data.at(0).size());
                 for (size_t i = 0; i < mat.data.size(); ++i) {
                     for (size_t j = 0; j < mat.data[0].size(); ++j) {
                         // dot the LHS matrix's row with the RHS matrix's col
@@ -130,7 +130,7 @@ namespace MachineLearning {
             }
         }
 
-        bool operator == (const matrix& other) const {
+        bool operator == (const Matrix& other) const {
             try {
                 if (data.size() == 0 || data.at(0).size() == 0 || other.data.size() == 0 || other.data.at(0).size() == 0) {
                     throw std::runtime_error("malformed matrix");
@@ -150,12 +150,22 @@ namespace MachineLearning {
                 throw std::runtime_error("malformed matrix");
             }
         }
+
+        size_t getRows() const { return data.size(); }
+        size_t getCols() const { return data.at(0).size(); }
     };
+
+    // Like EVERY single programmer who hath come before I. I can't name stuff
+    struct ParameterStruct {
+        Matrix weights;
+        std::vector<double> biases;
+    };
+    typedef struct ParameterStruct ParameterStruct;
 
     class Layer {
         private:
             std::vector<double> neurons;
-            MachineLearning::matrix weights;
+            MachineLearning::Matrix weights;
             std::vector<double> biases;
         public:
             std::weak_ptr<Layer> prev;
@@ -177,7 +187,7 @@ namespace MachineLearning {
 
             Layer() {}
 
-            const MachineLearning::matrix getWeights() const {
+            const MachineLearning::Matrix getWeights() const {
                 return weights;
             }
 
@@ -213,6 +223,12 @@ namespace MachineLearning {
                 std::vector<double> z = weights * prev->neurons + biases;
                 neurons = sigmoid(z);
             }
+
+            void compute(const ParameterStruct& ps) {
+                std::shared_ptr<Layer> prev = this->prev.lock();
+                std::vector<double> z = ps.weights * prev->neurons + ps.biases;
+                neurons = sigmoid(z);
+            }
     };
 
     typedef std::array<std::array<double, 28>, 28> Image;
@@ -245,20 +261,94 @@ namespace MachineLearning {
                 return 1;
             }
 
-            std::vector<double> gradientDecsent() {
-                size_t numWeights = 0;
-                size_t numBiases = 0;
-                for (size_t i = 0; i < layers.size() - 1; ++i) {
-                    numWeights += layers.at(i)->getNeurons().size() * layers.at(i+1)->getNeurons().size();
-                    numBiases += layers.at(i+1)->getNeurons().size();
+            std::vector<ParameterStruct> gradientDecsent() {
+                // size_t numWeights = 0;
+                // size_t numBiases = 0;
+                // for (size_t i = 0; i < layers.size() - 1; ++i) {
+                //     numWeights += layers.at(i)->getNeurons().size() * layers.at(i+1)->getNeurons().size();
+                //     numBiases += layers.at(i+1)->getNeurons().size();
+                // }
+
+                // std::vector<double> grad(numWeights + numBiases);
+                std::vector<ParameterStruct> params(layers.size()); // using this struct instead of a raw double vector makes my life SO much easier
+
+                // populate grad with the partial derivatives
+                for (size_t i = 1; i < layers.size(); ++i) {
+                    params.at(i) = {layers[i]->getWeights(),layers[i]->getBiases()};
                 }
 
-                std::vector<double> result(numWeights + numBiases);
-                // TODO: finish this method
+                std::vector<ParameterStruct> grad(params.size());
+
+                for (size_t i = 0; i < params.size(); ++i) {
+                    // 1) compute the partial derivative of cost w/ respect to the current parameter
+                    // 2) negate it and put it in grad
+                    // TODO: actual derivatives
+
+                    Matrix weights(params[i].weights.getRows(), params[i].weights.getCols());
+                    std::vector<double> biases(params[i].biases.size());
+
+                    for (size_t j = 0; j < params[i].weights.getRows(); ++j) {
+                        for (size_t k = 0; k < params[i].weights.getCols(); ++k) {
+                            constexpr double h = 0.000001;
+                            const double costA = computeCost(params);
+                            params[i].weights.data.at(j).at(k) += h;
+                            const double costB = computeCost(params);
+                            params[i].weights.data.at(j).at(k) -= h;
+
+                            // This is equal to -(costB - costA) / h, i have simplified it for performance reasons
+                            weights.data.at(j).at(k) = (costA - costB) / h;
+                        }
+                    }
+
+                    for (size_t j = 0; j < biases.size(); ++j) {
+                        constexpr double h = 0.000001;
+                        const double costA = computeCost(params);
+                        params[i].biases.at(j) += h;
+                        const double costB = computeCost(params);
+                        params[i].biases.at(j) -= h;
+
+                        biases.at(j) = (costA - costB) / h;
+                    }
+
+                    grad.at(i) = {weights, biases};
+                }
+
+                return grad;
             }
 
-            double computeCost() {
-                // ASSUME THAT LAYERS COMPLIES (too lazy to check)
+            double computeCost(const std::vector<ParameterStruct>& params) {
+                // This code is identical to computeCost(), except it uses the overloaded compute() in Layer, that takes in a ParameterStruct
+                double cost = 0.0;
+                for (size_t i = 0; i < trainingData.size(); ++i) {
+                    auto inputLayer = layers.at(0);
+                    std::array<double, 10> expectedOutput;
+                    for (size_t j = 0; j < 10; ++j) {
+                        expectedOutput[j] = (j == trainingData.at(i).second - '0') ? 1.0 : 0.0;
+                    }
+
+                    for (size_t j = 0; j < trainingData.at(0).first.size() * trainingData.at(0).first.at(0).size(); ++j) {
+                        // j / numCols is the row
+                        // j % numCols is the col
+                        // puttin' this here cuz i always forget how to access a 2d array with a flattened index
+                        inputLayer->neuronAt(j) = trainingData.at(i).first.at(j/28).at(j%28);
+                    }
+
+                    // Now we will compute all the layers
+                    for (size_t j = 1; j < layers.size(); ++j) {
+                        layers.at(j)->compute(params.at(j));
+                    }
+
+                    auto lastLayer = layers.at(layers.size() - 1);
+                    // C = (expctd - out)^2 + ...
+                    for (size_t j = 0; j < expectedOutput.size(); ++j) {
+                        cost += (expectedOutput.at(j) - lastLayer->neuronAt(j)) * (expectedOutput.at(j) - lastLayer->neuronAt(j));
+                    }
+                }
+                return cost / trainingData.size(); // average of the cost for all the training data
+            }
+
+            double computeCost() const {
+                // ASSUME THAT LAYERS COMPLIES (too lazy to check/make a version that is more modular)
                 // and we have training data
                 // 784 inputs, 10 outputs
                 // first, set the input layers

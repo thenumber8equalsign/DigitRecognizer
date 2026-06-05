@@ -3,7 +3,7 @@
 #include "../libMachineLearning.hpp"
 
 int main() {
-    MachineLearning::matrix mat;
+    MachineLearning::Matrix mat;
     std::vector<double> vec;
     vec.push_back(1);
     vec.push_back(2);
@@ -22,8 +22,8 @@ int main() {
     }
 
     // Test from wikipedia article for matrix multiplication
-    mat = MachineLearning::matrix();
-    MachineLearning::matrix b;
+    mat = MachineLearning::Matrix();
+    MachineLearning::Matrix b;
 
     mat.data.push_back({1, 0, 1});
     mat.data.push_back({2, 1, 1});
@@ -34,7 +34,7 @@ int main() {
     b.data.push_back({2, 3, 1});
     b.data.push_back({4, 2, 2});
 
-    MachineLearning::matrix expected;
+    MachineLearning::Matrix expected;
     expected.data.push_back({5, 4, 3});
     expected.data.push_back({8, 9, 5});
     expected.data.push_back({6, 5, 3});
@@ -47,7 +47,7 @@ int main() {
     }
 
 
-    mat = MachineLearning::matrix();
+    mat = MachineLearning::Matrix();
     mat.data.push_back({0, 0, 1});
     mat.data.push_back({0, 1, 0});
     mat.data.push_back({1, 0, 0});
@@ -65,13 +65,13 @@ int main() {
      * [-2 1 0]
      * [ 0 0 1]]*/
 
-    mat = MachineLearning::matrix();
+    mat = MachineLearning::Matrix();
     mat.data.push_back({1, 0, 0});
     mat.data.push_back({-2, 1, 0});
     mat.data.push_back({0, 0, 1});
 
 
-    expected = MachineLearning::matrix();
+    expected = MachineLearning::Matrix();
     expected.data.push_back({1, 2, 1});
     expected.data.push_back({0, -1, -1});
     expected.data.push_back({4, 2, 2});
