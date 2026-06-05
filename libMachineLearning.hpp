@@ -187,6 +187,11 @@ namespace MachineLearning {
 
             Layer() {}
 
+            void updateWeightDimensions() {
+                auto prev = this->prev.lock();
+                weights.data = std::vector<std::vector<double>>(neurons.size(), std::vector<double>(prev->neurons.size()));
+            }
+
             const MachineLearning::Matrix getWeights() const {
                 return weights;
             }
@@ -250,6 +255,7 @@ namespace MachineLearning {
             void linkLayers() {
                 for (size_t i = 1; i < layers.size(); ++i) {
                     layers[i]->prev = layers[i-1];
+                    layers[i]->updateWeightDimensions();
                 }
             }
 
