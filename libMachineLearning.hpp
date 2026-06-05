@@ -213,7 +213,7 @@ namespace MachineLearning {
                 return neurons.at(i);
             }
 
-            double& biaseAt(size_t i) {
+            double& biasesAt(size_t i) {
                 return biases.at(i);
             }
 
