@@ -17,6 +17,7 @@ inline std::vector<double> operator + (const std::vector<double>& lhs, const std
 
 namespace MachineLearning {
     double sigmoid(const double x);
+    double sigmoidDerivative(const double x);
     // Shorthand vector version of the sigmoid function to avoid having to write out all the for loops
     std::vector<double> sigmoid(const std::vector<double>& v);
 
@@ -234,6 +235,26 @@ namespace MachineLearning {
                 for (size_t i = 1; i < layers.size(); ++i) {
                     layers[i]->prev = layers[i-1];
                 }
+            }
+
+            double costDerivative(double activation, double expected) {
+                return 2 * (activation - expected);
+            }
+
+            constexpr double weightedInputWithBias(double b) {
+                return 1;
+            }
+
+            std::vector<double> gradientDecsent() {
+                size_t numWeights = 0;
+                size_t numBiases = 0;
+                for (size_t i = 0; i < layers.size() - 1; ++i) {
+                    numWeights += layers.at(i)->getNeurons().size() * layers.at(i+1)->getNeurons().size();
+                    numBiases += layers.at(i+1)->getNeurons().size();
+                }
+
+                std::vector<double> result(numWeights + numBiases);
+                // TODO: finish this method
             }
 
             double computeCost() {
