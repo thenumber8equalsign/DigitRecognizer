@@ -301,7 +301,7 @@ namespace MachineLearning {
                 }
 
                 std::vector<ParameterStruct> grad(params.size());
-                double cost = 0;
+                double cost = computeCost();
 
                 for (size_t i = 0; i < params.size(); ++i) {
                     // 1) compute the partial derivative of cost w/ respect to the current parameter
@@ -314,24 +314,21 @@ namespace MachineLearning {
                     for (size_t j = 0; j < params[i].weights.getRows(); ++j) {
                         for (size_t k = 0; k < params[i].weights.getCols(); ++k) {
                             constexpr double h = 0.000001;
-                            const double costA = computeCost(params);
                             params[i].weights.data.at(j).at(k) += h;
                             const double costB = computeCost(params);
                             params[i].weights.data.at(j).at(k) -= h;
 
-                            weights.data.at(j).at(k) = (costB - costA) / h;
+                            weights.data.at(j).at(k) = (costB - cost) / h;
                         }
                     }
 
                     for (size_t j = 0; j < biases.size(); ++j) {
                         constexpr double h = 0.000001;
-                        const double costA = computeCost(params);
-                        cost = costA;
                         params[i].biases.at(j) += h;
                         const double costB = computeCost(params);
                         params[i].biases.at(j) -= h;
 
-                        biases.at(j) = (costB - costA) / h;
+                        biases.at(j) = (costB - cost) / h;
                     }
 
                     grad.at(i) = {weights, biases};
