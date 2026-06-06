@@ -10,10 +10,11 @@ namespace MachineLearning {
         return std::exp(-x) / ((1.0 + std::exp(-x)) * (1.0 + std::exp(-x)));
     }
 
-    std::vector<double> sigmoid(const std::vector<double>& v) {
-        std::vector<double> result(v.size());
+    std::vector<Neuron> sigmoid(const std::vector<double>& v) {
+        std::vector<Neuron> result(v.size());
         for (size_t i = 0; i < v.size(); ++i) {
-            result[i] = sigmoid(v[i]);
+            result[i].activation = sigmoid(v[i]);
+            result[i].weightedInput = v[i];
         }
         return result;
     }

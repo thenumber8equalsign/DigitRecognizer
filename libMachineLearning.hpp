@@ -16,19 +16,25 @@ inline std::vector<double> operator + (const std::vector<double>& lhs, const std
 }
 
 namespace MachineLearning {
+    struct Neuron {
+        double activation = 0;
+        double weightedInput = 0;
+    };
+    typedef struct Neuron Neuron;
+
     double sigmoid(const double x);
     double sigmoidDerivative(const double x);
     // Shorthand vector version of the sigmoid function to avoid having to write out all the for loops
-    std::vector<double> sigmoid(const std::vector<double>& v);
+    std::vector<Neuron> sigmoid(const std::vector<double>& v);
 
-    inline __attribute__((always_inline)) double dot(const std::vector<double>& a, const std::vector<double>& b) {
+    inline __attribute__((always_inline)) double dot(const std::vector<double>& a, const std::vector<Neuron>& b) {
         if (a.size() != b.size()) {
             throw std::invalid_argument("not same dimension");
         }
 
         double d = 0;
         for (size_t i = 0; i < a.size(); ++i) {
-            d += a[i] * b[i];
+            d += a[i] * b[i].activation;
         }
         return d;
     }
@@ -130,7 +136,7 @@ namespace MachineLearning {
             }
         }
 
-        inline __attribute__((always_inline)) std::vector<double> operator * (const std::vector<double>& other) const {
+        inline __attribute__((always_inline)) std::vector<double> operator * (const std::vector<Neuron>& other) const {
             // try {
                 // if (data.at(0).size() != other.size()) {
                 //     throw std::domain_error("undefined");
@@ -181,7 +187,7 @@ namespace MachineLearning {
 
     class Layer {
         private:
-            std::vector<double> neurons;
+            std::vector<Neuron> neurons;
             MachineLearning::Matrix weights;
             std::vector<double> biases;
         public:
@@ -213,7 +219,7 @@ namespace MachineLearning {
                 return weights;
             }
 
-            const std::vector<double>& getNeurons() const {
+            const std::vector<Neuron>& getNeurons() const {
                 return neurons;
             }
 
@@ -225,7 +231,7 @@ namespace MachineLearning {
                 return weights.data.at(row).at(col);
             }
 
-            double& neuronAt(size_t i) {
+            Neuron& neuronAt(size_t i) {
                 // only allow setting a neuron if we are the starting layer
                 std::shared_ptr<Layer> tmp = prev.lock();
                 if (tmp) {
@@ -313,22 +319,126 @@ namespace MachineLearning {
 
                     for (size_t j = 0; j < params[i].weights.getRows(); ++j) {
                         for (size_t k = 0; k < params[i].weights.getCols(); ++k) {
-                            constexpr double h = 0.000001;
-                            params[i].weights.data.at(j).at(k) += h;
-                            const double costB = computeCost(params);
-                            params[i].weights.data.at(j).at(k) -= h;
+                            // constexpr double h = 0.000001;
+                            // params[i].weights.data.at(j).at(k) += h;
+                            // const double costB = computeCost(params);
+                            // params[i].weights.data.at(j).at(k) -= h;
 
-                            weights.data.at(j).at(k) = (costB - cost) / h;
+                            // weights.data.at(j).at(k) = (costB - cost) / h;
+                            double derivTotal = 0.0;
+
+                            // Load the images, average the derivatives
+                            for (size_t m = 0; m < trainingData.size(); ++m) {
+                                for (size_t n = 0; n < layers[0]->getNeurons().size(); ++n) {
+                                    layers[0]->neuronAt(n).activation = trainingData.at(m).first.at(n/28).at(n%28);
+                                }
+
+                                char lab = trainingData.at(m).second;
+
+                                std::vector<double> expected(10);
+                                for (size_t n = 0; n < expected.size(); ++n) {
+                                    if (n == lab) {
+                                        expected.at(n) = 1.0;
+                                    } else {
+                                        expected.at(n) = 0.0;
+                                    }
+                                }
+
+                                for (size_t n = 1; n < layers.size(); ++n) {
+                                    layers[n]->compute();
+                                }
+
+
+                                // start with 1
+                                // multiply by the previous neuron's activation
+                                double deriv = 1;
+                                // Remember, the row of the weights matrix is for the new neuron
+                                // the column is for the old neuron
+                                deriv *= layers[i]->getNeurons().at(k).activation;
+
+                                deriv *= sigmoidDerivative(layers[i+1]->getNeurons().at(j).weightedInput);
+                                // keep multiplying by all the weights until the top neuron in the last layer
+                                // first, we multiply by the next weights [0][row]
+                                // then multiply by all the next weights [0][0]
+                                if (i < params.size()-1) {
+                                    deriv *= params.at(i+1).weights.data.at(0).at(j);
+                                    deriv *= costDerivative(layers[layers.size()-1]->getNeurons().at(0).activation, expected.at(0));
+                                    for (size_t l = i+2; l < params.size(); ++l) {
+                                        deriv *= params.at(l).weights.data.at(0).at(0);
+                                        deriv *= sigmoidDerivative(layers.at(l)->getNeurons().at(0).weightedInput);
+                                    }
+                                    deriv *= sigmoidDerivative(layers.at(layers.size()-1)->getNeurons().at(0).weightedInput);
+                                } else {
+                                    // If this is the final layer we are not going to the top neuron, we use a different one
+                                    // delC/delAj * delAj/delZj * delZj/delwjk
+                                    // CostDeriv    sigmoidDeriv   activation prev (already done)
+                                    deriv *= costDerivative(layers[i+1]->getNeurons().at(j).activation, expected.at(j));
+                                }
+                                derivTotal += deriv;
+                            }
+
+                            weights.data.at(j).at(k) = derivTotal / trainingData.size();
                         }
                     }
 
                     for (size_t j = 0; j < biases.size(); ++j) {
-                        constexpr double h = 0.000001;
-                        params[i].biases.at(j) += h;
-                        const double costB = computeCost(params);
-                        params[i].biases.at(j) -= h;
+                        // constexpr double h = 0.000001;
+                        // params[i].biases.at(j) += h;
+                        // const double costB = computeCost(params);
+                        // params[i].biases.at(j) -= h;
 
-                        biases.at(j) = (costB - cost) / h;
+                        // biases.at(j) = (costB - cost) / h;
+                        double derivTotal = 0.0;
+
+                        // Load the images, average the derivatives
+                        for (size_t m = 0; m < trainingData.size(); ++m) {
+                            for (size_t n = 0; n < layers[0]->getNeurons().size(); ++n) {
+                                layers[0]->neuronAt(n).activation = trainingData.at(m).first.at(n/28).at(n%28);
+                            }
+
+                            char lab = trainingData.at(m).second;
+
+                            std::vector<double> expected(10);
+                            for (size_t n = 0; n < expected.size(); ++n) {
+                                if (n == lab) {
+                                    expected.at(n) = 1.0;
+                                } else {
+                                    expected.at(n) = 0.0;
+                                }
+                            }
+
+                            for (size_t n = 1; n < layers.size(); ++n) {
+                                layers[n]->compute();
+                            }
+
+
+                            // start with 1
+                            double deriv = 1;
+                            // Remember, the row of the weights matrix is for the new neuron
+                            // the column is for the old neuron
+
+                            deriv *= sigmoidDerivative(layers[i+1]->getNeurons().at(j).weightedInput);
+                            // keep multiplying by all the weights until the top neuron in the last layer
+                            // first, we multiply by the next weights [0][row]
+                            // then multiply by all the next weights [0][0]
+                            if (i < params.size()-1) {
+                                deriv *= params.at(i+1).weights.data.at(0).at(j);
+                                deriv *= costDerivative(layers[layers.size()-1]->getNeurons().at(0).activation, expected.at(0));
+                                for (size_t l = i+2; l < params.size(); ++l) {
+                                    deriv *= params.at(l).weights.data.at(0).at(0);
+                                    deriv *= sigmoidDerivative(layers.at(l)->getNeurons().at(0).weightedInput);
+                                }
+                                deriv *= sigmoidDerivative(layers.at(layers.size()-1)->getNeurons().at(0).weightedInput);
+                            } else {
+                                // If this is the final layer we are not going to the top neuron, we use a different one
+                                // delC/delAj * delAj/delZj * delZj/delwjk
+                                // CostDeriv    sigmoidDeriv   activation prev (already done)
+                                deriv *= costDerivative(layers[i+1]->getNeurons().at(j).activation, expected.at(j));
+                            }
+                            derivTotal += deriv;
+                        }
+
+                        biases.at(j) = derivTotal / trainingData.size();
                     }
 
                     grad.at(i) = {weights, biases};
@@ -351,7 +461,7 @@ namespace MachineLearning {
                         // j / numCols is the row
                         // j % numCols is the col
                         // puttin' this here cuz i always forget how to access a 2d array with a flattened index
-                        inputLayer->neuronAt(j) = trainingData.at(i).first.at(j/28).at(j%28);
+                        inputLayer->neuronAt(j).activation = trainingData.at(i).first.at(j/28).at(j%28);
                     }
 
                     // Now we will compute all the layers
@@ -362,7 +472,7 @@ namespace MachineLearning {
                     auto lastLayer = layers.at(layers.size() - 1);
                     // C = (expctd - out)^2 + ...
                     for (size_t j = 0; j < expectedOutput.size(); ++j) {
-                        cost += (expectedOutput.at(j) - lastLayer->getNeurons().at(j)) * (expectedOutput.at(j) - lastLayer->getNeurons().at(j));
+                        cost += (expectedOutput.at(j) - lastLayer->getNeurons().at(j).activation) * (expectedOutput.at(j) - lastLayer->getNeurons().at(j).activation);
                     }
                 }
                 return cost / trainingData.size(); // average of the cost for all the training data
@@ -386,7 +496,7 @@ namespace MachineLearning {
                         // j / numCols is the row
                         // j % numCols is the col
                         // puttin' this here cuz i always forget how to access a 2d array with a flattened index
-                        inputLayer->neuronAt(j) = trainingData.at(i).first.at(j/28).at(j%28);
+                        inputLayer->neuronAt(j).activation = trainingData.at(i).first.at(j/28).at(j%28);
                     }
 
                     // Now we will compute all the layers
@@ -397,7 +507,7 @@ namespace MachineLearning {
                     auto lastLayer = layers.at(layers.size() - 1);
                     // C = (expctd - out)^2 + ...
                     for (size_t j = 0; j < expectedOutput.size(); ++j) {
-                        cost += (expectedOutput.at(j) - lastLayer->getNeurons().at(j)) * (expectedOutput.at(j) - lastLayer->getNeurons().at(j));
+                        cost += (expectedOutput.at(j) - lastLayer->getNeurons().at(j).activation) * (expectedOutput.at(j) - lastLayer->getNeurons().at(j).activation);
                     }
                 }
                 return cost / trainingData.size(); // average of the cost for all the training data

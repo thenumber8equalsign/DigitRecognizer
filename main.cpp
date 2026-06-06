@@ -29,6 +29,25 @@ std::string getExecutablePath() {
 #error "Linux only, I was too lazy to make it work on windows/mac/bsd/other"
 #endif
 
+inline __attribute__((always_inline)) std::vector<std::string> split(std::string s, std::string delim) {
+    std::vector<std::string> res;
+    auto pos = s.find(delim);
+    if (pos == std::string::npos) {
+        res.push_back(s);
+        return res;
+    }
+    while (pos != std::string::npos) {
+        // after finding the first delim, take the substring
+        res.push_back(s.substr(0, pos));
+
+        s.erase(0, pos+1); // erase the substring from the string, including the delim
+
+        pos = s.find(delim); // find the next delim
+    }
+    res.push_back(s);
+    return res;
+}
+
 std::vector<std::pair<MachineLearning::Image, char>> readTrainingData() {
     const std::filesystem::path exePath(getExecutablePath());
     const std::filesystem::path exeDir(exePath.string().substr(0,exePath.string().length()-exePath.filename().string().length()));
@@ -54,13 +73,13 @@ std::vector<std::pair<MachineLearning::Image, char>> readTrainingData() {
             image.at(i/height).at(i%width) = val / 255.0;
         }
 
-
-        images.push_back({image, label});
-
-        if (i >= 0) break;
-        ++i;
+        auto s = split(dir_entry.path().string(), "-");
+        if (s[s.size()-1] == "2.bin") {
+            images.push_back({image, label});
+            ++i;
+        }
+        if (i >= 1) break;
     }
-
     return images;
 }
 
@@ -114,7 +133,7 @@ int main() {
     std::cout << "Training..." << std::endl;
 
     std::vector<double> previousCosts(10, -INFINITY);
-    for (size_t i = 0; i < 50; ++i) {
+    for (size_t i = 0; i < 99999; ++i) {
         auto c = model.gradientDecsent();
         double cost = c.second;
         // Print the cost
