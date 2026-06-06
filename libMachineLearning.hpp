@@ -85,13 +85,13 @@ namespace MachineLearning {
 
         std::vector<double> colAt(const size_t j) const {
             std::vector<double> col(data.size());
-            try {
+            // try {
                 for (size_t i = 0; i < data.size(); ++i) {
                     col.at(i)=(data.at(i).at(j));
                 }
-            } catch (std::out_of_range) {
-                throw std::runtime_error("malformed matrix");
-            }
+            // } catch (std::out_of_range) {
+            //     throw std::runtime_error("malformed matrix");
+            // }
             return col;
         }
 
@@ -107,22 +107,22 @@ namespace MachineLearning {
         Matrix operator * (const double scalar) const {
             Matrix result;
 
-            try {
+            // try {
                 result = Matrix(data.size(), data.at(0).size());
-            } catch (std::out_of_range) {
-                throw std::runtime_error("malformed matrix");
-            }
+            // } catch (std::out_of_range) {
+            //     throw std::runtime_error("malformed matrix");
+            // }
 
-            try {
+            // try {
                 for (size_t i = 0; i < result.data.size(); ++i) {
                     for (size_t j = 0; j < result.data[0].size(); ++j) {
                         result[i][j] = data.at(i).at(j) * scalar;
                     }
                 }
-            } catch (std::out_of_range) {
-                // not all the rows are the same length
-                throw std::runtime_error("malformed matrix");
-            }
+            // } catch (std::out_of_range) {
+            //     // not all the rows are the same length
+            //     throw std::runtime_error("malformed matrix");
+            // }
             return result;
         }
 
@@ -137,7 +137,7 @@ namespace MachineLearning {
         }
 
         Matrix operator * (const Matrix& other) const {
-            try {
+            // try {
                 // Check restrictions (# col here has to be # row there)
                 if (data.at(0).size() != other.data.size()) {
                     throw std::domain_error("undefined"); // Domain error was the closest error type I could find, so I use it cuz i dont wanna make my own
@@ -158,9 +158,9 @@ namespace MachineLearning {
                 }
 
                 return mat;
-            } catch (std::out_of_range) {
-                throw std::runtime_error("malformed matrix");
-            }
+            // } catch (std::out_of_range) {
+            //     throw std::runtime_error("malformed matrix");
+            // }
         }
 
         inline __attribute__((always_inline)) std::vector<double> operator * (const std::vector<Neuron>& other) const {
@@ -198,7 +198,7 @@ namespace MachineLearning {
         }
 
         bool operator == (const Matrix& other) const {
-            try {
+            // try {
                 if (data.size() == 0 || data.at(0).size() == 0 || other.data.size() == 0 || other.data.at(0).size() == 0) {
                     throw std::runtime_error("malformed matrix");
                 }
@@ -213,16 +213,16 @@ namespace MachineLearning {
                     }
                 }
                 return true;
-            } catch (std::out_of_range) {
-                throw std::runtime_error("malformed matrix");
-            }
+            // } catch (std::out_of_range) {
+            //     throw std::runtime_error("malformed matrix");
+            // }
         }
 
         size_t getRows() const { return data.size(); }
         size_t getCols() const { return data.at(0).size(); }
 
         Matrix transpose() const {
-            try {
+            // try {
                 Matrix res(getCols(), getRows());
                 for (size_t i = 0; i < res.getRows(); ++i) {
                     for (size_t j = 0; j < res.getCols(); ++j) {
@@ -230,9 +230,9 @@ namespace MachineLearning {
                     }
                 }
                 return res;
-            } catch (std::out_of_range) {
-                throw std::runtime_error("malformed matrix");
-            }
+            // } catch (std::out_of_range) {
+            //     throw std::runtime_error("malformed matrix");
+            // }
         }
     };
 
@@ -393,6 +393,8 @@ namespace MachineLearning {
                     for (size_t j = errors.size()-2; j > 0; --j) {
                         errors.at(j) = ((layers.at(j+2)->getWeights().transpose() * errors.at(j+1)) * sigmoidDerivative(layers.at(j+1)->getNeurons()));
                     }
+                    // Since if we change the above loop to be j>=0, we get an error because size_t is unsigned, therefore we must add this hard-coded version for j=0
+                    errors.at(0) = ((layers.at(2)->getWeights().transpose() * errors.at(1)) * sigmoidDerivative(layers.at(1)->getNeurons()));
 
 
                     for (size_t j = 0; j < derivatives.size(); ++j) {
