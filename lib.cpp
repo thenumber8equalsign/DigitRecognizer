@@ -1,6 +1,5 @@
 #include "libMachineLearning.hpp"
 #include <cmath>
-#include <stdexcept>
 
 namespace MachineLearning {
     double sigmoid(const double x) {
