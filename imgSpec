@@ -1,5 +1,5 @@
 byte 0:
-the integer label (as a char)
+the integer label (not a char code)
 byte 1:
 width (always 28)
 byte 2:

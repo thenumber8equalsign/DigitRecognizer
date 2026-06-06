@@ -21,7 +21,17 @@ namespace MachineLearning {
     // Shorthand vector version of the sigmoid function to avoid having to write out all the for loops
     std::vector<double> sigmoid(const std::vector<double>& v);
 
-    double dot(const std::vector<double>& a, const std::vector<double>& b);
+    inline __attribute__((always_inline)) double dot(const std::vector<double>& a, const std::vector<double>& b) {
+        if (a.size() != b.size()) {
+            throw std::invalid_argument("not same dimension");
+        }
+
+        double d = 0;
+        for (size_t i = 0; i < a.size(); ++i) {
+            d += a[i] * b[i];
+        }
+        return d;
+    }
 
     struct Matrix {
         std::vector<std::vector<double>> data;
@@ -103,7 +113,14 @@ namespace MachineLearning {
                 for (size_t i = 0; i < mat.data.size(); ++i) {
                     for (size_t j = 0; j < mat.data[0].size(); ++j) {
                         // dot the LHS matrix's row with the RHS matrix's col
-                        mat[i][j] = dot(data.at(i), other.colAt(j));
+                        // mat[i][j] = dot(data.at(i), other.colAt(j));
+                        mat.data[i][j] = 0;
+
+                        // Go through everything in this row
+                        for (size_t k = 0; k < data[0].size(); ++k) {
+                            mat.data[i][j] += data[i][k] * other.data[k][i];
+                        }
+
                     }
                 }
 
@@ -113,11 +130,11 @@ namespace MachineLearning {
             }
         }
 
-        std::vector<double> operator * (const std::vector<double>& other) const {
-            try {
-                if (data.at(0).size() != other.size()) {
-                    throw std::domain_error("undefined");
-                }
+        inline __attribute__((always_inline)) std::vector<double> operator * (const std::vector<double>& other) const {
+            // try {
+                // if (data.at(0).size() != other.size()) {
+                //     throw std::domain_error("undefined");
+                // }
 
                 std::vector<double> result(data.size());
                 for (size_t i = 0; i < data.size(); ++i) {
@@ -125,9 +142,9 @@ namespace MachineLearning {
                 }
 
                 return result;
-            } catch (std::out_of_range) {
-                throw std::runtime_error("malformed matrix");
-            }
+            // } catch (std::out_of_range) {
+            //     throw std::runtime_error("malformed matrix");
+            // }
         }
 
         bool operator == (const Matrix& other) const {
@@ -267,7 +284,7 @@ namespace MachineLearning {
                 return 1;
             }
 
-            std::vector<ParameterStruct> gradientDecsent() {
+            std::pair<std::vector<ParameterStruct>, double> gradientDecsent() {
                 // size_t numWeights = 0;
                 // size_t numBiases = 0;
                 // for (size_t i = 0; i < layers.size() - 1; ++i) {
@@ -276,14 +293,15 @@ namespace MachineLearning {
                 // }
 
                 // std::vector<double> grad(numWeights + numBiases);
-                std::vector<ParameterStruct> params(layers.size()); // using this struct instead of a raw double vector makes my life SO much easier
+                std::vector<ParameterStruct> params(layers.size()-1); // using this struct instead of a raw double vector makes my life SO much easier
 
                 // populate grad with the partial derivatives
                 for (size_t i = 1; i < layers.size(); ++i) {
-                    params.at(i) = {layers[i]->getWeights(),layers[i]->getBiases()};
+                    params.at(i-1) = {layers[i]->getWeights(),layers[i]->getBiases()};
                 }
 
                 std::vector<ParameterStruct> grad(params.size());
+                double cost = 0;
 
                 for (size_t i = 0; i < params.size(); ++i) {
                     // 1) compute the partial derivative of cost w/ respect to the current parameter
@@ -301,25 +319,25 @@ namespace MachineLearning {
                             const double costB = computeCost(params);
                             params[i].weights.data.at(j).at(k) -= h;
 
-                            // This is equal to -(costB - costA) / h, i have simplified it for performance reasons
-                            weights.data.at(j).at(k) = (costA - costB) / h;
+                            weights.data.at(j).at(k) = (costB - costA) / h;
                         }
                     }
 
                     for (size_t j = 0; j < biases.size(); ++j) {
                         constexpr double h = 0.000001;
                         const double costA = computeCost(params);
+                        cost = costA;
                         params[i].biases.at(j) += h;
                         const double costB = computeCost(params);
                         params[i].biases.at(j) -= h;
 
-                        biases.at(j) = (costA - costB) / h;
+                        biases.at(j) = (costB - costA) / h;
                     }
 
                     grad.at(i) = {weights, biases};
                 }
 
-                return grad;
+                return {grad, cost};
             }
 
             double computeCost(const std::vector<ParameterStruct>& params) {
@@ -329,7 +347,7 @@ namespace MachineLearning {
                     auto inputLayer = layers.at(0);
                     std::array<double, 10> expectedOutput;
                     for (size_t j = 0; j < 10; ++j) {
-                        expectedOutput[j] = (j == trainingData.at(i).second - '0') ? 1.0 : 0.0;
+                        expectedOutput[j] = (j == trainingData.at(i).second) ? 1.0 : 0.0;
                     }
 
                     for (size_t j = 0; j < trainingData.at(0).first.size() * trainingData.at(0).first.at(0).size(); ++j) {
@@ -341,13 +359,13 @@ namespace MachineLearning {
 
                     // Now we will compute all the layers
                     for (size_t j = 1; j < layers.size(); ++j) {
-                        layers.at(j)->compute(params.at(j));
+                        layers.at(j)->compute(params.at(j-1));
                     }
 
                     auto lastLayer = layers.at(layers.size() - 1);
                     // C = (expctd - out)^2 + ...
                     for (size_t j = 0; j < expectedOutput.size(); ++j) {
-                        cost += (expectedOutput.at(j) - lastLayer->neuronAt(j)) * (expectedOutput.at(j) - lastLayer->neuronAt(j));
+                        cost += (expectedOutput.at(j) - lastLayer->getNeurons().at(j)) * (expectedOutput.at(j) - lastLayer->getNeurons().at(j));
                     }
                 }
                 return cost / trainingData.size(); // average of the cost for all the training data
@@ -364,7 +382,7 @@ namespace MachineLearning {
                     auto inputLayer = layers.at(0);
                     std::array<double, 10> expectedOutput;
                     for (size_t j = 0; j < 10; ++j) {
-                        expectedOutput[j] = (j == trainingData.at(i).second - '0') ? 1.0 : 0.0;
+                        expectedOutput[j] = (j == trainingData.at(i).second) ? 1.0 : 0.0;
                     }
 
                     for (size_t j = 0; j < trainingData.at(0).first.size() * trainingData.at(0).first.at(0).size(); ++j) {
@@ -382,7 +400,7 @@ namespace MachineLearning {
                     auto lastLayer = layers.at(layers.size() - 1);
                     // C = (expctd - out)^2 + ...
                     for (size_t j = 0; j < expectedOutput.size(); ++j) {
-                        cost += (expectedOutput.at(j) - lastLayer->neuronAt(j)) * (expectedOutput.at(j) - lastLayer->neuronAt(j));
+                        cost += (expectedOutput.at(j) - lastLayer->getNeurons().at(j)) * (expectedOutput.at(j) - lastLayer->getNeurons().at(j));
                     }
                 }
                 return cost / trainingData.size(); // average of the cost for all the training data

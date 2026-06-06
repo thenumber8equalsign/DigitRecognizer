@@ -1,3 +1,5 @@
+#include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -35,9 +37,10 @@ std::vector<std::pair<MachineLearning::Image, char>> readTrainingData() {
 
     std::vector<std::pair<MachineLearning::Image, char>> images;
 
+    size_t i = 0;
     for (auto const& dir_entry : std::filesystem::directory_iterator(trainingDir)) {
         std::ifstream file(dir_entry.path(), std::ifstream::binary);
-        char label = '0';
+        char label = '\0';
         char width = 28;
         char height = 28;
         file.read(&label, 1);
@@ -53,17 +56,26 @@ std::vector<std::pair<MachineLearning::Image, char>> readTrainingData() {
 
 
         images.push_back({image, label});
+
+        if (i >= 0) break;
+        ++i;
     }
 
     return images;
 }
 
+void appendToVector(std::vector<double>& v, const double a) {
+    for (size_t i = v.size()-1; i > 0; --i) {
+        v.at(i) = v.at(i-1);
+    }
+    v.at(0) = a;
+}
+
 int main() {
     MachineLearning::Model model;
-    std::vector<std::shared_ptr<MachineLearning::Layer>> layers(1 + 2 + 1); // 2 hidden layers
+    std::vector<std::shared_ptr<MachineLearning::Layer>> layers(1 + 1 + 1); // 2 hidden layers
     layers.at(0) = std::make_shared<MachineLearning::Layer>(28*28);
     layers.at(1) = std::make_shared<MachineLearning::Layer>(16);
-    layers.at(2) = std::make_shared<MachineLearning::Layer>(16);
     layers.at(layers.size()-1) = std::make_shared<MachineLearning::Layer>(10);
 
     std::random_device dev;
@@ -86,18 +98,54 @@ int main() {
         // Initialize the parameters to be random doubles within [-10, 10]
         for (size_t j = 0; j < weights.getRows(); ++j) {
             for (size_t k = 0; k < weights.getCols(); ++k) {
-                layers.at(i)->weightAt(j, k) = ((long)dist(rng)-10000) / 1000.0 * 10.0;
+                layers.at(i)->weightAt(j, k) = ((long)dist(rng)-1000) / 1000.0 * 10.0;
             }
         }
 
         for (size_t j = 0; j < biases.size(); ++j) {
-            layers.at(i)->biasesAt(j) = ((long)dist(rng)-10000) / 1000.0 * 10.0;
+            layers.at(i)->biasesAt(j) = ((long)dist(rng)-1000) / 1000.0 * 10.0;
         }
     }
 
     std::cout << "Reading training data..." << std::endl;
     model.trainingData = readTrainingData();
 
+
     std::cout << "Training..." << std::endl;
+
+    std::vector<double> previousCosts(10, -INFINITY);
+    for (size_t i = 0; i < 50; ++i) {
+        auto c = model.gradientDecsent();
+        double cost = c.second;
+        // Print the cost
+        std::cout << "Current cost: " << cost << std::endl;
+        std::vector<MachineLearning::ParameterStruct> s = c.first;
+
+        // Use the gradient descent
+        for (size_t j = 0; j < s.size(); ++j) {
+            for (size_t k = 0; k < s.at(j).weights.getRows(); ++k) {
+                for (size_t l = 0; l < s.at(j).weights.getCols(); ++l) {
+                    model.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.at(k).at(l) / 2.0;
+                }
+            }
+
+            for (size_t k = 0; k < s.at(j).biases.size(); ++k) {
+                model.layers.at(j+1)->biasesAt(k) -= s.at(j).biases.at(k) / 2.0;
+            }
+        }
+
+        // Add exit logic later (TODO)
+        appendToVector(previousCosts, cost);
+        // Calculate the average delta
+        double avg = 0.0;
+        for (size_t j = 1; j < previousCosts.size(); ++j) {
+            avg += previousCosts.at(j-1) - previousCosts.at(j);
+        }
+        avg /= previousCosts.size();
+        std::cout << "Current average difference " << avg << std::endl;
+        if (std::abs(avg) < 0.0000001) break;
+    }
+
+    std::cout << "Done!" << std::endl;
     return 0;
 }
