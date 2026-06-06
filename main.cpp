@@ -13,6 +13,7 @@
 #include <climits>
 
 #include <random>
+#define LEARN_RATE 0.5
 
 #ifdef __linux__
 std::string getExecutablePath() {
@@ -48,11 +49,11 @@ inline __attribute__((always_inline)) std::vector<std::string> split(std::string
     return res;
 }
 
-std::vector<std::pair<MachineLearning::Image, char>> readTrainingData() {
+std::vector<std::pair<MachineLearning::Image, char>> readData(std::string dir) {
     const std::filesystem::path exePath(getExecutablePath());
     const std::filesystem::path exeDir(exePath.string().substr(0,exePath.string().length()-exePath.filename().string().length()));
 
-    const std::filesystem::path trainingDir(exeDir.string() + "trainingData/");
+    const std::filesystem::path trainingDir(exeDir.string() + dir + "/");
 
     std::vector<std::pair<MachineLearning::Image, char>> images;
 
@@ -74,11 +75,11 @@ std::vector<std::pair<MachineLearning::Image, char>> readTrainingData() {
         }
 
         auto s = split(dir_entry.path().string(), "-");
-        if (s[s.size()-1] == "2.bin") {
+        // if (s[s.size()-1] == "2.bin") {
             images.push_back({image, label});
             ++i;
-        }
-        if (i >= 100) break;
+        // }
+        // if (i >= 100) break;
     }
     return images;
 }
@@ -111,10 +112,6 @@ int main() {
         auto weights = layers.at(i)->getWeights();
         auto biases = layers.at(i)->getBiases();
 
-
-        auto h = weights.getRows();
-        h = weights.getCols();
-
         // Initialize the parameters to be random doubles within [-10, 10]
         for (size_t j = 0; j < weights.getRows(); ++j) {
             for (size_t k = 0; k < weights.getCols(); ++k) {
@@ -128,12 +125,13 @@ int main() {
     }
 
     std::cout << "Reading training data..." << std::endl;
-    model.trainingData = readTrainingData();
+    model.trainingData = readData("trainingData");
 
 
     std::cout << "Training..." << std::endl;
     model.backPropagate();
     std::vector<double> previousCosts(10, -INFINITY);
+    bool brokeAvg = false;
     for (size_t i = 0; i < 99999; ++i) {
         std::vector<MachineLearning::ParameterStruct> s = model.backPropagate();
 
@@ -141,12 +139,12 @@ int main() {
         for (size_t j = 0; j < s.size(); ++j) {
             for (size_t k = 0; k < s.at(j).weights.getRows(); ++k) {
                 for (size_t l = 0; l < s.at(j).weights.getCols(); ++l) {
-                    model.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.at(k).at(l) / 2.0;
+                    model.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.at(k).at(l) * LEARN_RATE;
                 }
             }
 
             for (size_t k = 0; k < s.at(j).biases.size(); ++k) {
-                model.layers.at(j+1)->biasesAt(k) -= s.at(j).biases.at(k) / 2.0;
+                model.layers.at(j+1)->biasesAt(k) -= s.at(j).biases.at(k) * LEARN_RATE;
             }
         }
 
@@ -156,7 +154,6 @@ int main() {
         std::cout << "Current cost: " << cost << std::endl;
         appendToVector(previousCosts, cost);
 
-
         // Calculate the average delta
         double avg = 0.0;
         for (size_t j = 1; j < previousCosts.size(); ++j) {
@@ -164,9 +161,30 @@ int main() {
         }
         avg /= previousCosts.size();
         std::cout << "Current average difference " << avg << std::endl;
-        if (std::abs(avg) < 1e-10) break;
+        if (std::abs(avg) < 1e-7) {
+            brokeAvg = true;
+            break;
+        }
     }
 
-    std::cout << "Done!" << std::endl;
+    std::cout << "Done training!" << std::endl;
+    if (brokeAvg) {
+        std::cout << "Exited because the average difference was very little" << std::endl;
+    } else {
+        std::cout << "Exited because the number of iterations was very large" << std::endl;
+    }
+
+
+    std::cout << "Testing..." << std::endl;
+    std::cout << "Reading testing data..." << std::endl;
+    auto testingData = readData("testingData");
+    size_t numCorrect = 0;
+    for (size_t i = 0; i < testingData.size(); ++i) {
+        for (size_t j = 0; j < model.layers.at(0)->getNeurons().size(); ++j) {
+            model.layers.at(0)->neuronAt(j).activation = testingData.at(i).first.at(j / 28).at(j % 28);
+        }
+
+
+    }
     return 0;
 }
