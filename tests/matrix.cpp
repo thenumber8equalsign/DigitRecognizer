@@ -40,6 +40,7 @@ int main() {
     expected.data.push_back({6, 5, 3});
     expected.data.push_back({11, 9, 6});
 
+    mat * b;
     if (mat * b == expected) {
         std::cout << "Pass example from wikipedia" << std::endl;
     } else {
@@ -80,6 +81,24 @@ int main() {
         std::cout << "pass row op" << std::endl;
     } else {
         std::cout << "fail row op" << std::endl;
+    }
+
+    mat = MachineLearning::Matrix();
+
+    mat.data.push_back({1, 0, 1});
+    mat.data.push_back({2, 1, 1});
+    mat.data.push_back({0, 1, 1});
+    mat.data.push_back({1, 1, 2});
+
+    expected = MachineLearning::Matrix();
+    expected.data.push_back({1, 2, 0, 1});
+    expected.data.push_back({0, 1, 1, 1});
+    expected.data.push_back({1, 1, 1, 2});
+
+    if (mat.transpose() == expected) {
+        std::cout << "pass transpose" << std::endl;
+    } else {
+         std::cout << "fail transpose" << std::endl;
     }
 
     return 0;

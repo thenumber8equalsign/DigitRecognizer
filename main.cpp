@@ -78,7 +78,7 @@ std::vector<std::pair<MachineLearning::Image, char>> readTrainingData() {
             images.push_back({image, label});
             ++i;
         }
-        if (i >= 1) break;
+        if (i >= 100) break;
     }
     return images;
 }
@@ -92,9 +92,10 @@ void appendToVector(std::vector<double>& v, const double a) {
 
 int main() {
     MachineLearning::Model model;
-    std::vector<std::shared_ptr<MachineLearning::Layer>> layers(1 + 1 + 1); // 2 hidden layers
+    std::vector<std::shared_ptr<MachineLearning::Layer>> layers(1 + 2 + 1); // 2 hidden layers
     layers.at(0) = std::make_shared<MachineLearning::Layer>(28*28);
     layers.at(1) = std::make_shared<MachineLearning::Layer>(16);
+    layers.at(2) = std::make_shared<MachineLearning::Layer>(16);
     layers.at(layers.size()-1) = std::make_shared<MachineLearning::Layer>(10);
 
     std::random_device dev;
@@ -131,14 +132,10 @@ int main() {
 
 
     std::cout << "Training..." << std::endl;
-
+    model.backPropagate();
     std::vector<double> previousCosts(10, -INFINITY);
     for (size_t i = 0; i < 99999; ++i) {
-        auto c = model.gradientDecsent();
-        double cost = c.second;
-        // Print the cost
-        std::cout << "Current cost: " << cost << std::endl;
-        std::vector<MachineLearning::ParameterStruct> s = c.first;
+        std::vector<MachineLearning::ParameterStruct> s = model.backPropagate();
 
         // Use the gradient descent
         for (size_t j = 0; j < s.size(); ++j) {
@@ -153,8 +150,13 @@ int main() {
             }
         }
 
-        // Add exit logic later (TODO)
+
+        double cost = model.computeCost();
+        // Print the cost
+        std::cout << "Current cost: " << cost << std::endl;
         appendToVector(previousCosts, cost);
+
+
         // Calculate the average delta
         double avg = 0.0;
         for (size_t j = 1; j < previousCosts.size(); ++j) {
@@ -162,7 +164,7 @@ int main() {
         }
         avg /= previousCosts.size();
         std::cout << "Current average difference " << avg << std::endl;
-        if (std::abs(avg) < 0.0000001) break;
+        if (std::abs(avg) < 1e-10) break;
     }
 
     std::cout << "Done!" << std::endl;

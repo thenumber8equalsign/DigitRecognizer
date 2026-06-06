@@ -19,4 +19,12 @@ namespace MachineLearning {
         return result;
     }
 
+    std::vector<double> sigmoidDerivative(const std::vector<Neuron>& v) {
+        std::vector<double> result(v.size());
+        for (size_t i = 0; i < v.size(); ++i) {
+            result[i] = sigmoidDerivative(v[i].weightedInput);
+        }
+        return result;
+    }
+
 }
