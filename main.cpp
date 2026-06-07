@@ -112,15 +112,18 @@ int main() {
         auto weights = layers.at(i)->getWeights();
         auto biases = layers.at(i)->getBiases();
 
+        // +- sqrt(6/(neuron_in_prev + neuron_in_cur))
+        const double v = std::sqrt(6.0/(layers.at(i-1)->getNeurons().size() + layers.at(i)->getNeurons().size()));
+
         // Initialize the parameters to be random doubles within [-10, 10]
         for (size_t j = 0; j < weights.getRows(); ++j) {
             for (size_t k = 0; k < weights.getCols(); ++k) {
-                layers.at(i)->weightAt(j, k) = ((long)dist(rng)-1000) / 1000.0 * 10.0;
+                layers.at(i)->weightAt(j, k) = ((long)dist(rng)-1000) / 1000.0 * v;
             }
         }
 
         for (size_t j = 0; j < biases.size(); ++j) {
-            layers.at(i)->biasesAt(j) = ((long)dist(rng)-1000) / 1000.0 * 10.0;
+            layers.at(i)->biasesAt(j) = ((long)dist(rng)-1000) / 1000.0 * v;
         }
     }
 
@@ -180,11 +183,34 @@ int main() {
     auto testingData = readData("testingData");
     size_t numCorrect = 0;
     for (size_t i = 0; i < testingData.size(); ++i) {
+        char lab = testingData.at(i).second;
         for (size_t j = 0; j < model.layers.at(0)->getNeurons().size(); ++j) {
             model.layers.at(0)->neuronAt(j).activation = testingData.at(i).first.at(j / 28).at(j % 28);
         }
 
+        for (size_t j = 1; j < model.layers.size(); ++j) {
+            model.layers.at(j)->compute();
+        }
 
+        double lastLayerSum = 0;
+        for (size_t j = 0; j < model.layers.at(model.layers.size()-1)->getNeurons().size(); ++j) {
+            lastLayerSum += model.layers.at(model.layers.size()-1)->getNeurons().at(j).activation;
+        }
+
+        std::pair<size_t, double> prediction = {0,-INFINITY};
+        for (size_t j = 0; j < model.layers.at(model.layers.size()-1)->getNeurons().size(); ++j) {
+            auto& lay = model.layers.at(model.layers.size()-1);
+
+            if (lay->getNeurons().at(j).activation/lastLayerSum > prediction.second) {
+                prediction = {j, lay->getNeurons().at(j).activation/lastLayerSum};
+            }
+        }
+
+        if (prediction.first == lab) {
+            ++numCorrect;
+        }
     }
+
+    std::cout << "Accuracy: " << numCorrect*1.0/testingData.size() << std::endl;
     return 0;
 }
