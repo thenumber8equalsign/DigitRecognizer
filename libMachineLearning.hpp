@@ -258,7 +258,11 @@ namespace MachineLearning {
 
                 // The number of rows is the number of neurons here,
                 // the number of columns is the number of neurons in the previous layer
-                weights.data = std::vector<std::vector<double>>(numNeurons, std::vector<double>(prev->neurons.size()));
+                // weights.data = std::vector<std::vector<double>>(numNeurons, std::vector<double>(prev->neurons.size()));
+                weights.data.resize(numNeurons);
+                for (size_t i = 0; i < numNeurons; ++i) {
+                    weights.data.at(i).resize(prev->neurons.size());
+                }
             }
 
             Layer(size_t numNeurons) {
@@ -270,7 +274,11 @@ namespace MachineLearning {
 
             void updateWeightDimensions() {
                 auto prev = this->prev.lock();
-                weights.data = std::vector<std::vector<double>>(neurons.size(), std::vector<double>(prev->neurons.size()));
+                // weights.data = std::vector<std::vector<double>>(neurons.size(), std::vector<double>(prev->neurons.size()));
+                weights.data.resize(neurons.size());
+                for (size_t i = 0; i < neurons.size(); ++i) {
+                    weights.data.at(i).resize(prev->neurons.size());
+                }
             }
 
             const MachineLearning::Matrix getWeights() const {
@@ -291,10 +299,10 @@ namespace MachineLearning {
 
             Neuron& neuronAt(size_t i) {
                 // only allow setting a neuron if we are the starting layer
-                std::shared_ptr<Layer> tmp = prev.lock();
-                if (tmp) {
-                    throw std::runtime_error("Can not set activation of a hidden or output layer");
-                }
+                // std::shared_ptr<Layer> tmp = prev.lock();
+                // if (tmp) {
+                //     throw std::runtime_error("Can not set activation of a hidden or output layer");
+                // }
 
                 return neurons.at(i);
             }
