@@ -12,6 +12,8 @@
 #include "libMachineLearning.hpp"
 #include <ncurses.h>
 
+#include <deque>
+
 #define LEARN_RATE 0.5
 
 #ifdef __linux__
@@ -83,13 +85,6 @@ std::vector<std::pair<MachineLearning::Image, char>> readData(std::string dir) {
     return images;
 }
 
-void appendToVector(std::vector<double>& v, const double a) {
-    for (size_t i = v.size()-1; i > 0; --i) {
-        v.at(i) = v.at(i-1);
-    }
-    v.at(0) = a;
-}
-
 int main() {
     MachineLearning::Model model;
     std::vector<std::shared_ptr<MachineLearning::Layer>> layers(1 + 2 + 1); // 2 hidden layers
@@ -137,7 +132,7 @@ int main() {
     timeout(0);
 
     model.backPropagate();
-    std::vector<double> previousCosts(10, -INFINITY);
+    std::deque<double> previousCosts(10, -INFINITY);
     bool brokeAvg = false;
     for (size_t i = 0; i < 99999; ++i) {
         std::vector<MachineLearning::ParameterStruct> s = model.backPropagate();
@@ -161,7 +156,10 @@ int main() {
         // Print the cost
         move(0,0);
         printw("Current cost: %lf\n", cost);
-        appendToVector(previousCosts, cost);
+        previousCosts.push_front(cost);
+        if (previousCosts.size() > 10) {
+            previousCosts.pop_back();
+        }
 
         // Calculate the average delta
         double avg = 0.0;
