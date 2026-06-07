@@ -4,15 +4,14 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "libMachineLearning.hpp"
-
 #include <fstream>
 #include <filesystem>
-
 #include <unistd.h>
 #include <climits>
-
 #include <random>
+#include "libMachineLearning.hpp"
+#include <ncurses.h>
+
 #define LEARN_RATE 0.5
 
 #ifdef __linux__
@@ -132,6 +131,11 @@ int main() {
 
 
     std::cout << "Training..." << std::endl;
+
+    initscr();
+    clear();
+    timeout(0);
+
     model.backPropagate();
     std::vector<double> previousCosts(10, -INFINITY);
     bool brokeAvg = false;
@@ -152,9 +156,11 @@ int main() {
         }
 
 
+        clear();
         double cost = model.computeCost();
         // Print the cost
-        std::cout << "Current cost: " << cost << std::endl;
+        move(0,0);
+        printw("Current cost: %lf\n", cost);
         appendToVector(previousCosts, cost);
 
         // Calculate the average delta
@@ -163,13 +169,23 @@ int main() {
             avg += previousCosts.at(j-1) - previousCosts.at(j);
         }
         avg /= previousCosts.size();
-        std::cout << "Current average difference " << avg << std::endl;
+        printw("Current average difference %lf\n", avg);
+        printw("Press q to quit training\n");
         if (std::abs(avg) < 1e-7) {
             brokeAvg = true;
             break;
         }
+
+        // If we did type anything
+        // The < 400 is my cheat of ensuring that we actually typed something printable, cuz it was exitting even if we resized the window
+        int ch;
+        if ((ch = getch()) != ERR && ch < 400 && ch == 'q') {
+            break;
+        }
+
     }
 
+    endwin();
     std::cout << "Done training!" << std::endl;
     if (brokeAvg) {
         std::cout << "Exited because the average difference was very little" << std::endl;
