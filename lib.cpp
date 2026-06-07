@@ -26,5 +26,4 @@ namespace MachineLearning {
         }
         return result;
     }
-
 }

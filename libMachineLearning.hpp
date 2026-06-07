@@ -3,8 +3,7 @@
 #include <stdexcept>
 #include <memory>
 #include <array>
-
-#include <iostream>
+#include <random>
 
 inline std::vector<double> operator + (const std::vector<double>& lhs, const std::vector<double>& rhs) {
     if (lhs.size() != rhs.size()) throw std::invalid_argument("sizes not equal");
@@ -218,8 +217,8 @@ namespace MachineLearning {
             // }
         }
 
-        size_t getRows() const { return data.size(); }
-        size_t getCols() const { return data.at(0).size(); }
+        const size_t getRows() const { return data.size(); }
+        const size_t getCols() const { return data.at(0).size(); }
 
         Matrix transpose() const {
             // try {
@@ -248,6 +247,7 @@ namespace MachineLearning {
             std::vector<Neuron> neurons;
             MachineLearning::Matrix weights;
             std::vector<double> biases;
+            std::shared_ptr<Layer> prevShared;
         public:
             std::weak_ptr<Layer> prev;
 
@@ -311,21 +311,33 @@ namespace MachineLearning {
                 return biases.at(i);
             }
 
+            // Use these that way we don't call prev.lock() every single time in training
+            void prepareCompute() {
+                prevShared = this->prev.lock();
+            }
+
+            void endCompute() {
+                prevShared = nullptr;
+            }
+
             void compute() {
                 // neurons = sigmoid(weights*(neuronsPrev) + bias)
-                std::shared_ptr<Layer> prev = this->prev.lock();
-                std::vector<double> z = weights * prev->neurons + biases;
+                // std::shared_ptr<Layer> prev = this->prev.lock();
+                std::vector<double> z = weights * prevShared->neurons + biases;
                 neurons = sigmoid(z);
             }
 
             void compute(const ParameterStruct& ps) {
-                std::shared_ptr<Layer> prev = this->prev.lock();
-                std::vector<double> z = ps.weights * prev->neurons + ps.biases;
+                // std::shared_ptr<Layer> prev = this->prev.lock();
+                std::vector<double> z = ps.weights * prevShared->neurons + ps.biases;
                 neurons = sigmoid(z);
             }
     };
 
     typedef std::array<std::array<double, 28>, 28> Image;
+
+    inline std::random_device dev;
+    inline std::mt19937 rng(dev());
 
     class Model {
         public:
@@ -357,16 +369,20 @@ namespace MachineLearning {
             }
 
 
-            std::vector<ParameterStruct> backPropagate() {
-                // http://neuralnetworksanddeeplearning.com/chap2.html
-
-                // This stuff here is just to get the shape of weights and biases, the actual content doesn't matter here
-                std::vector<ParameterStruct> derivatives(layers.size()-1);
-
-                for (size_t j = 1; j < layers.size(); ++j) {
-                    derivatives.at(j-1).biases = std::vector<double>(layers.at(j)->getBiases().size());
-                    derivatives.at(j-1).weights = Matrix(layers.at(j)->getWeights().getRows(), layers.at(j)->getWeights().getCols());
+            void prepare() {
+                for (size_t i = 0; i < layers.size(); ++i) {
+                    layers[i]->prepareCompute();
                 }
+            }
+
+            void end() {
+                for (size_t i = 0; i < layers.size(); ++i) {
+                    layers[i]->endCompute();
+                }
+            }
+
+            std::vector<ParameterStruct> backPropagate(std::vector<ParameterStruct>& derivatives, std::vector<std::vector<double>>& errors) {
+                // http://neuralnetworksanddeeplearning.com/chap2.html
 
                 for (size_t i = 0; i < trainingData.size(); ++i) {
                     // Load the data
@@ -386,7 +402,6 @@ namespace MachineLearning {
                         layers.at(0)->neuronAt(j).activation = img.at(j / 28).at(j % 28);
                     }
 
-                    std::vector<std::vector<double>> errors(layers.size()-1);
                     for (size_t j = 1; j < layers.size(); ++j) {
                         layers.at(j)->compute();
                         errors.at(j-1) = std::vector<double>(layers.at(j)->getNeurons().size());

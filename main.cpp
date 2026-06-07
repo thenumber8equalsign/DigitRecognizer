@@ -131,11 +131,21 @@ int main() {
     clear();
     timeout(0);
 
-    model.backPropagate();
     std::deque<double> previousCosts(10, -INFINITY);
     bool brokeAvg = false;
+
+
+    std::vector<MachineLearning::ParameterStruct> derivatives(layers.size()-1);
+    for (size_t j = 1; j < layers.size(); ++j) {
+        derivatives.at(j-1).biases = std::vector<double>(layers.at(j)->getBiases().size());
+        derivatives.at(j-1).weights = MachineLearning::Matrix(layers.at(j)->getWeights().getRows(), layers.at(j)->getWeights().getCols());
+    }
+    std::vector<std::vector<double>> errors(layers.size()-1);
+
+    model.prepare();
+
     for (size_t i = 0; i < 99999; ++i) {
-        std::vector<MachineLearning::ParameterStruct> s = model.backPropagate();
+        std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(derivatives, errors);
 
         // Use the gradient descent
         for (size_t j = 0; j < s.size(); ++j) {
@@ -224,6 +234,7 @@ int main() {
             ++numCorrect;
         }
     }
+    model.end();
 
     std::cout << "Accuracy: " << numCorrect*1.0/testingData.size() << std::endl;
     return 0;
