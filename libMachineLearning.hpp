@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <vector>
 #include <stdexcept>
 #include <memory>
@@ -481,16 +482,17 @@ namespace MachineLearning {
                 return cost / trainingData.size(); // average of the cost for all the training data
             }
 
-            double computeCost() const {
+            double computeCost(std::vector<size_t>& trainingDataIndicies, std::vector<double>& expectedOutput, const size_t batch_size) const {
                 // ASSUME THAT LAYERS COMPLIES (too lazy to check/make a version that is more modular)
                 // and we have training data
                 // 784 inputs, 10 outputs
                 // first, set the input layers
-
+                // Use a mini-batch
+                std::shuffle(trainingDataIndicies.begin(), trainingDataIndicies.end(), rng);
                 double cost = 0.0;
-                for (size_t i = 0; i < trainingData.size(); ++i) {
+                for (size_t it = 0; it < batch_size; ++it) {
+                    const size_t& i = trainingDataIndicies[it];
                     auto inputLayer = layers.at(0);
-                    std::array<double, 10> expectedOutput;
                     for (size_t j = 0; j < 10; ++j) {
                         expectedOutput[j] = (j == trainingData.at(i).second) ? 1.0 : 0.0;
                     }
@@ -513,7 +515,7 @@ namespace MachineLearning {
                         cost += (expectedOutput.at(j) - lastLayer->getNeurons().at(j).activation) * (expectedOutput.at(j) - lastLayer->getNeurons().at(j).activation);
                     }
                 }
-                return cost / trainingData.size(); // average of the cost for all the training data
+                return cost / batch_size; // average of the cost for all the training data
             }
     };
 }

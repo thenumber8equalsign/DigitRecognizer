@@ -14,6 +14,8 @@
 
 #define LEARN_RATE 0.5
 
+#define BATCH_SIZE 500
+
 #ifdef __linux__
 std::string getExecutablePath() {
     char path[PATH_MAX+1];
@@ -147,6 +149,11 @@ int main() {
         errors[i] = std::vector<double>(layers.at(i+1)->getNeurons().size());
     }
 
+    std::vector<size_t> trainingDataIndicies(model.trainingData.size());
+    for (size_t i = 0; i < trainingDataIndicies.size(); ++i) {
+        trainingDataIndicies[i] = i;
+    }
+
     model.prepare();
 
     for (size_t i = 0; i < 999999; ++i) {
@@ -186,7 +193,8 @@ int main() {
         clear();
         move(0,0);
         printw("Number of iterations: %lu\n", i+1);
-        printw("Current gradient magnitude %g\n", mag);
+        printw("Current gradient magnitude: %g\n", mag);
+        printw("Current cost: %g\n", model.computeCost(trainingDataIndicies, expected, BATCH_SIZE));
         printw("Press q to quit training\n");
         if (mag < 1e-7) {
             reason = Magnitude;
