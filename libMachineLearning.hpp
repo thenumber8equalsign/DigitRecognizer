@@ -6,7 +6,7 @@
 #include <random>
 
 inline std::vector<double> operator + (const std::vector<double>& lhs, const std::vector<double>& rhs) {
-    if (lhs.size() != rhs.size()) throw std::invalid_argument("sizes not equal");
+    // if (lhs.size() != rhs.size()) throw std::invalid_argument("sizes not equal");
 
     std::vector<double> res(lhs.size());
     for (size_t i = 0; i < res.size(); ++i) {
@@ -18,7 +18,7 @@ inline std::vector<double> operator + (const std::vector<double>& lhs, const std
 
 // Hadamard product
 inline std::vector<double> operator * (const std::vector<double>& lhs, const std::vector<double>& rhs) {
-    if (lhs.size() != rhs.size()) throw std::invalid_argument("sizes not equal");
+    // if (lhs.size() != rhs.size()) throw std::invalid_argument("sizes not equal");
 
     std::vector<double> res(lhs.size());
     for (size_t i = 0; i < res.size(); ++i) {
@@ -77,6 +77,10 @@ namespace MachineLearning {
 
         inline __attribute__((always_inline)) double& at(const size_t i, const size_t j) {
             return data[i * cols + j];
+        }
+
+        inline __attribute__((always_inline)) const double& get(const size_t i, const size_t j) const {
+            return data[i*cols+j];
         }
 
         inline __attribute__((always_inline)) Matrix operator * (const double scalar) const {
@@ -261,7 +265,7 @@ namespace MachineLearning {
                 weights.cols = prev->neurons.size();
             }
 
-            const MachineLearning::Matrix getWeights() const {
+            const MachineLearning::Matrix& getWeights() const {
                 return weights;
             }
 
@@ -269,7 +273,7 @@ namespace MachineLearning {
                 return neurons;
             }
 
-            const std::vector<double> getBiases() const {
+            const std::vector<double>& getBiases() const {
                 return biases;
             }
 
@@ -363,6 +367,10 @@ namespace MachineLearning {
 
             std::vector<ParameterStruct> backPropagate(std::vector<ParameterStruct>& derivatives, std::vector<std::vector<double>>& errors, std::vector<double>& expected) {
                 // http://neuralnetworksanddeeplearning.com/chap2.html
+                std::vector<Matrix> transposedWeights(errors.size()-1);
+                for (size_t i = 0; i < transposedWeights.size(); ++i) {
+                    transposedWeights[i] = layers[i+2]->getWeights().transpose();
+                }
 
                 for (size_t i = 0; i < trainingData.size(); ++i) {
                     // Load the data
@@ -392,11 +400,23 @@ namespace MachineLearning {
                     }
 
                     for (size_t j = errors.size()-2; j > 0; --j) {
-                        errors.at(j) = ((layers.at(j+2)->getWeights().transpose() * errors.at(j+1)) * sigmoidDerivative(layers.at(j+1)->getNeurons()));
+                        const auto& trans = transposedWeights[j];
+                        for (size_t k = 0; k < errors.at(j).size(); ++k) {
+                            double val = 0.0;
+                            for (size_t l = 0; l < errors.at(j+1).size(); ++l) {
+                                val += errors.at(j+1).at(l) * trans.get(k,l);
+                            }
+                            errors.at(j).at(k) = val * sigmoidDerivative(layers.at(j+1)->getNeurons().at(k).weightedInput);
+                        }
                     }
                     // Since if we change the above loop to be j>=0, we get an error because size_t is unsigned, therefore we must add this hard-coded version for j=0
-                    errors.at(0) = ((layers.at(2)->getWeights().transpose() * errors.at(1)) * sigmoidDerivative(layers.at(1)->getNeurons()));
-
+                    for (size_t j = 0; j < errors.at(0).size(); ++j) {
+                        double val = 0.0;
+                        for (size_t k = 0; k < transposedWeights[0].cols; ++k) {
+                            val += transposedWeights[0].get(j, k) * errors.at(1).at(k);
+                        }
+                        errors.at(0).at(j) = val * sigmoidDerivative(layers.at(1)->getNeurons().at(j).weightedInput);
+                    }
 
                     for (size_t j = 0; j < derivatives.size(); ++j) {
                         // delC/delB = the error
