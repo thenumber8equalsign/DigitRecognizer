@@ -141,7 +141,11 @@ int main() {
         derivatives.at(j-1).biases = std::vector<double>(layers.at(j)->getBiases().size());
         derivatives.at(j-1).weights = MachineLearning::Matrix(layers.at(j)->getWeights().getRows(), layers.at(j)->getWeights().getCols());
     }
+
     std::vector<std::vector<double>> errors(layers.size()-1);
+    for (size_t i = 0; i < errors.size(); ++i) {
+        errors[i] = std::vector<double>(layers.at(i+1)->getNeurons().size());
+    }
 
     model.prepare();
 

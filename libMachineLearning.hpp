@@ -403,7 +403,6 @@ namespace MachineLearning {
 
                     for (size_t j = 1; j < layers.size(); ++j) {
                         layers.at(j)->compute();
-                        errors.at(j-1) = std::vector<double>(layers.at(j)->getNeurons().size());
                     }
 
                     for (size_t j = 0; j < errors.at(errors.size()-1).size(); ++j) {
