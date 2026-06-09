@@ -208,7 +208,7 @@ int main() {
             reason = Exit;
             break;
         }
-
+        while ((ch = getch()) != ERR);
     }
 
     endwin();
