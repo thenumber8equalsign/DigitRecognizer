@@ -74,15 +74,15 @@ namespace MachineLearning {
 
         Matrix() {}
 
-        std::vector<double>& operator [] (const size_t i) {
+        inline __attribute__((always_inline)) std::vector<double>& operator [] (const size_t i) {
             return data[i];
         }
 
-        std::vector<double>& at(const size_t i) {
+        inline __attribute__((always_inline)) std::vector<double>& at(const size_t i) {
             return data.at(i);
         }
 
-        std::vector<double> colAt(const size_t j) const {
+        inline __attribute__((always_inline)) std::vector<double> colAt(const size_t j) const {
             std::vector<double> col(data.size());
             // try {
                 for (size_t i = 0; i < data.size(); ++i) {
@@ -94,7 +94,7 @@ namespace MachineLearning {
             return col;
         }
 
-        std::vector<double> unsafeColAt(const size_t j) const {
+        inline __attribute__((always_inline)) std::vector<double> unsafeColAt(const size_t j) const {
             std::vector<double> col(data.size());
             for (size_t i = 0; i < data.size(); ++i) {
                 col[i]=(data[i][j]);
@@ -103,7 +103,7 @@ namespace MachineLearning {
         }
 
 
-        Matrix operator * (const double scalar) const {
+        inline __attribute__((always_inline)) Matrix operator * (const double scalar) const {
             Matrix result;
 
             // try {
@@ -126,7 +126,7 @@ namespace MachineLearning {
         }
 
 
-        Matrix& operator *= (const double scalar) {
+        inline __attribute__((always_inline)) Matrix& operator *= (const double scalar) {
             for (size_t i = 0; i < data.size(); ++i) {
                 for (size_t j = 0; j < data[i].size(); ++j) {
                     data.at(i).at(j) *= scalar;
@@ -135,7 +135,7 @@ namespace MachineLearning {
             return *this;
         }
 
-        Matrix operator * (const Matrix& other) const {
+        inline __attribute__((always_inline)) Matrix operator * (const Matrix& other) const {
             // try {
                 // Check restrictions (# col here has to be # row there)
                 if (data.at(0).size() != other.data.size()) {
@@ -196,7 +196,7 @@ namespace MachineLearning {
             // }
         }
 
-        bool operator == (const Matrix& other) const {
+        inline __attribute__((always_inline)) bool operator == (const Matrix& other) const {
             // try {
                 if (data.size() == 0 || data.at(0).size() == 0 || other.data.size() == 0 || other.data.at(0).size() == 0) {
                     throw std::runtime_error("malformed matrix");
@@ -217,10 +217,10 @@ namespace MachineLearning {
             // }
         }
 
-        const size_t getRows() const { return data.size(); }
-        const size_t getCols() const { return data.at(0).size(); }
+        inline __attribute__((always_inline)) const size_t getRows() const { return data.size(); }
+        inline __attribute__((always_inline)) const size_t getCols() const { return data.at(0).size(); }
 
-        Matrix transpose() const {
+        inline __attribute__((always_inline)) Matrix transpose() const {
             // try {
                 Matrix res(getCols(), getRows());
                 for (size_t i = 0; i < res.getRows(); ++i) {
