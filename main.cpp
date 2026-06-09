@@ -7,12 +7,10 @@
 #include <fstream>
 #include <filesystem>
 #include <unistd.h>
-#include <climits>
+#include <limits.h>
 #include <random>
 #include "libMachineLearning.hpp"
 #include <ncurses.h>
-
-#include <deque>
 
 #define LEARN_RATE 0.5
 
@@ -117,7 +115,7 @@ int main() {
         }
 
         for (size_t j = 0; j < biases.size(); ++j) {
-            layers.at(i)->biasesAt(j) = ((long)dist(rng)-1000) / 1000.0 * v;
+            layers.at(i)->biasAt(j) = ((long)dist(rng)-1000) / 1000.0 * v;
         }
     }
 
@@ -131,12 +129,12 @@ int main() {
     clear();
     timeout(0);
 
-    std::deque<double> previousCosts(10, -INFINITY);
-    bool brokeAvg = false;
-
+    enum BreakReason {
+        Iterations, Magnitude, Exit
+    };
+    BreakReason reason = Iterations;
 
     std::vector<double> expected(10);
-
 
     std::vector<MachineLearning::ParameterStruct> derivatives(layers.size()-1);
     for (size_t j = 1; j < layers.size(); ++j) {
@@ -147,43 +145,47 @@ int main() {
 
     model.prepare();
 
-    for (size_t i = 0; i < 99999; ++i) {
+    for (size_t i = 0; i < 999999; ++i) {
         std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(derivatives, errors, expected);
 
+        // Reset derivatives, errors, and expected
+        for (size_t j = 0; j < errors.size(); ++j) {
+            for (size_t k = 0; k < errors[j].size(); ++k) {
+                errors[j][k] = 0;
+            }
+        }
+
+        for (size_t j = 0; j < expected.size(); ++j) {
+            expected[j] = 0;
+        }
+
         // Use the gradient descent
+        double mag = 0;
         for (size_t j = 0; j < s.size(); ++j) {
             for (size_t k = 0; k < s.at(j).weights.getRows(); ++k) {
                 for (size_t l = 0; l < s.at(j).weights.getCols(); ++l) {
                     model.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.at(k).at(l) * LEARN_RATE;
+                    derivatives[j].weights[k][l] = 0;
+                    mag += model.layers.at(j+1)->weightAt(k, l) * model.layers.at(j+1)->weightAt(k, l);
                 }
             }
 
             for (size_t k = 0; k < s.at(j).biases.size(); ++k) {
-                model.layers.at(j+1)->biasesAt(k) -= s.at(j).biases.at(k) * LEARN_RATE;
+                model.layers.at(j+1)->biasAt(k) -= s.at(j).biases.at(k) * LEARN_RATE;
+                derivatives[j].biases[k] = 0;
+                mag += model.layers.at(j+1)->biasAt(k) * model.layers.at(j+1)->biasAt(k);
             }
         }
 
+        mag = std::sqrt(mag);
 
         clear();
-        double cost = model.computeCost();
-        // Print the cost
         move(0,0);
-        printw("Current cost: %g\n", cost);
-        previousCosts.push_front(cost);
-        if (previousCosts.size() > 10) {
-            previousCosts.pop_back();
-        }
-
-        // Calculate the average delta
-        double avg = 0.0;
-        for (size_t j = 1; j < previousCosts.size(); ++j) {
-            avg += previousCosts.at(j-1) - previousCosts.at(j);
-        }
-        avg /= previousCosts.size();
-        printw("Current average difference %g\n", avg);
+        printw("Number of iterations: %lu\n", i+1);
+        printw("Current gradient magnitude %g\n", mag);
         printw("Press q to quit training\n");
-        if (std::abs(avg) < 1e-7) {
-            brokeAvg = true;
+        if (mag < 1e-7) {
+            reason = Magnitude;
             break;
         }
 
@@ -191,19 +193,25 @@ int main() {
         // The < 400 is my cheat of ensuring that we actually typed something printable, cuz it was exitting even if we resized the window
         int ch;
         if ((ch = getch()) != ERR && ch < 400 && ch == 'q') {
+            reason = Exit;
             break;
         }
 
     }
 
     endwin();
-    std::cout << "Done training!" << std::endl;
-    if (brokeAvg) {
-        std::cout << "Exited because the average difference was very little" << std::endl;
-    } else {
-        std::cout << "Exited because the number of iterations was very large" << std::endl;
+    switch (reason) {
+        case Iterations:
+            std::cout << "Exited because the number of iterations was very large" << std::endl;
+            break;
+        case Magnitude:
+            std::cout << "Exited because the magnitude of the gradient was very little" << std::endl;
+            break;
+        case Exit:
+            std::cout << "Exited because you told me to" << std::endl;
+            break;
     }
-
+    std::cout << "Done training!" << std::endl;
 
     std::cout << "Testing..." << std::endl;
     std::cout << "Reading testing data..." << std::endl;
