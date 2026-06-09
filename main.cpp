@@ -59,12 +59,12 @@ std::vector<std::pair<MachineLearning::Image, char>> readData(std::string dir) {
     size_t i = 0;
     for (auto const& dir_entry : std::filesystem::directory_iterator(trainingDir)) {
         std::ifstream file(dir_entry.path(), std::ifstream::binary);
-        char label = '\0';
-        char width = 28;
-        char height = 28;
-        file.read(&label, 1);
-        file.read(&width, 1);
-        file.read(&height, 1);
+        unsigned char label = '\0';
+        unsigned char width = 28;
+        unsigned char height = 28;
+        file.read(reinterpret_cast<char*>(&label), 1);
+        file.read(reinterpret_cast<char*>(&width), 1);
+        file.read(reinterpret_cast<char*>(&height), 1);
         MachineLearning::Image image;
         for (size_t i = 0; i < width*height; ++i) {
             unsigned char val = 0;
