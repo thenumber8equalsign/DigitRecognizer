@@ -165,7 +165,7 @@ int main() {
         double cost = model.computeCost();
         // Print the cost
         move(0,0);
-        printw("Current cost: %lf\n", cost);
+        printw("Current cost: %g\n", cost);
         previousCosts.push_front(cost);
         if (previousCosts.size() > 10) {
             previousCosts.pop_back();
@@ -177,7 +177,7 @@ int main() {
             avg += previousCosts.at(j-1) - previousCosts.at(j);
         }
         avg /= previousCosts.size();
-        printw("Current average difference %lf\n", avg);
+        printw("Current average difference %g\n", avg);
         printw("Press q to quit training\n");
         if (std::abs(avg) < 1e-7) {
             brokeAvg = true;
