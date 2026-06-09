@@ -66,56 +66,32 @@ namespace MachineLearning {
     }
 
     struct Matrix {
-        std::vector<std::vector<double>> data;
+        size_t rows, cols;
+        std::vector<double> data;
 
-        Matrix(const size_t r, const size_t c) {
-            data = std::vector<std::vector<double>>(r, std::vector<double>(c, 0));
+        Matrix(const size_t r, const size_t c) : rows(r), cols(c) {
+            data = std::vector<double>(r*c);
         }
 
-        Matrix() {}
+        Matrix() : rows(0), cols(0) {}
 
-        inline __attribute__((always_inline)) std::vector<double>& operator [] (const size_t i) {
-            return data[i];
+        inline __attribute__((always_inline)) double& at(const size_t i, const size_t j) {
+            return data[i * cols + j];
         }
-
-        inline __attribute__((always_inline)) std::vector<double>& at(const size_t i) {
-            return data.at(i);
-        }
-
-        inline __attribute__((always_inline)) std::vector<double> colAt(const size_t j) const {
-            std::vector<double> col(data.size());
-            // try {
-                for (size_t i = 0; i < data.size(); ++i) {
-                    col.at(i)=(data.at(i).at(j));
-                }
-            // } catch (std::out_of_range) {
-            //     throw std::runtime_error("malformed matrix");
-            // }
-            return col;
-        }
-
-        inline __attribute__((always_inline)) std::vector<double> unsafeColAt(const size_t j) const {
-            std::vector<double> col(data.size());
-            for (size_t i = 0; i < data.size(); ++i) {
-                col[i]=(data[i][j]);
-            }
-            return col;
-        }
-
 
         inline __attribute__((always_inline)) Matrix operator * (const double scalar) const {
             Matrix result;
 
             // try {
-                result = Matrix(data.size(), data.at(0).size());
+                result = Matrix(rows, cols);
             // } catch (std::out_of_range) {
             //     throw std::runtime_error("malformed matrix");
             // }
 
             // try {
-                for (size_t i = 0; i < result.data.size(); ++i) {
-                    for (size_t j = 0; j < result.data[0].size(); ++j) {
-                        result[i][j] = data.at(i).at(j) * scalar;
+                for (size_t i = 0; i < rows; ++i) {
+                    for (size_t j = 0; j < cols; ++j) {
+                        result.data[i * cols + j] = data[i * cols + j] * scalar;
                     }
                 }
             // } catch (std::out_of_range) {
@@ -127,9 +103,9 @@ namespace MachineLearning {
 
 
         inline __attribute__((always_inline)) Matrix& operator *= (const double scalar) {
-            for (size_t i = 0; i < data.size(); ++i) {
-                for (size_t j = 0; j < data[i].size(); ++j) {
-                    data.at(i).at(j) *= scalar;
+            for (size_t i = 0; i < rows; ++i) {
+                for (size_t j = 0; j < cols; ++j) {
+                    data[i * cols + j] *= scalar;
                 }
             }
             return *this;
@@ -138,19 +114,19 @@ namespace MachineLearning {
         inline __attribute__((always_inline)) Matrix operator * (const Matrix& other) const {
             // try {
                 // Check restrictions (# col here has to be # row there)
-                if (data.at(0).size() != other.data.size()) {
-                    throw std::domain_error("undefined"); // Domain error was the closest error type I could find, so I use it cuz i dont wanna make my own
-                }
-                Matrix mat(data.size(), other.data.at(0).size());
-                for (size_t i = 0; i < mat.data.size(); ++i) {
-                    for (size_t j = 0; j < mat.data[0].size(); ++j) {
+                // if (data.at(0).size() != other.data.size()) {
+                //     throw std::domain_error("undefined"); // Domain error was the closest error type I could find, so I use it cuz i dont wanna make my own
+                // }
+                Matrix mat(rows, other.cols);
+                for (size_t i = 0; i < mat.rows; ++i) {
+                    for (size_t j = 0; j < mat.cols; ++j) {
                         // dot the LHS matrix's row with the RHS matrix's col
                         // mat[i][j] = dot(data.at(i), other.colAt(j));
-                        mat.data[i][j] = 0;
+                        mat.data[i * mat.cols + j] = 0;
 
                         // Go through everything in this row
-                        for (size_t k = 0; k < data[0].size(); ++k) {
-                            mat.data[i][j] += data[i][k] * other.data[k][j];
+                        for (size_t k = 0; k < cols; ++k) {
+                            mat.data[i*mat.cols+j] += data[i*cols+k] * other.data[k*other.cols+j];
                         }
 
                     }
@@ -168,9 +144,12 @@ namespace MachineLearning {
                 //     throw std::domain_error("undefined");
                 // }
 
-                std::vector<double> result(data.size());
-                for (size_t i = 0; i < data.size(); ++i) {
-                    result[i] = dot(data[i], other);
+                std::vector<double> result(rows);
+                for (size_t i = 0; i < rows; ++i) {
+                    result[i] = 0;
+                    for (size_t j = 0; j < cols; ++j) {
+                        result[i] += data[i*cols + j] * other[j].activation;
+                    }
                 }
 
                 return result;
@@ -185,9 +164,12 @@ namespace MachineLearning {
                 //     throw std::domain_error("undefined");
                 // }
 
-                std::vector<double> result(data.size());
-                for (size_t i = 0; i < data.size(); ++i) {
-                    result[i] = dot(data[i], other);
+                std::vector<double> result(rows);
+                for (size_t i = 0; i < rows; ++i) {
+                    result[i] = 0;
+                    for (size_t j = 0; j < cols; ++j) {
+                        result[i] += data[i*cols + j] * other[j];
+                    }
                 }
 
                 return result;
@@ -198,17 +180,17 @@ namespace MachineLearning {
 
         inline __attribute__((always_inline)) bool operator == (const Matrix& other) const {
             // try {
-                if (data.size() == 0 || data.at(0).size() == 0 || other.data.size() == 0 || other.data.at(0).size() == 0) {
-                    throw std::runtime_error("malformed matrix");
-                }
+                // if (data.size() == 0 || data.at(0).size() == 0 || other.data.size() == 0 || other.data.at(0).size() == 0) {
+                //     throw std::runtime_error("malformed matrix");
+                // }
 
-                if (data.size() != other.data.size() || data.at(0).size() != other.data.at(0).size()) {
+                if (data.size() != other.data.size() || rows != other.rows || cols != other.cols) {
                     return false;
                 }
 
-                for (size_t i = 0; i < data.size(); ++i) {
-                    for (size_t j = 0; j < data.at(0).size(); ++j) {
-                        if (other.data.at(i).at(j) != data.at(i).at(j)) return false;
+                for (size_t i = 0; i < rows; ++i) {
+                    for (size_t j = 0; j < cols; ++j) {
+                        if (other.data[i * cols + j] != data[i * cols + j]) return false;
                     }
                 }
                 return true;
@@ -217,15 +199,15 @@ namespace MachineLearning {
             // }
         }
 
-        inline __attribute__((always_inline)) const size_t getRows() const { return data.size(); }
-        inline __attribute__((always_inline)) const size_t getCols() const { return data.at(0).size(); }
+        inline __attribute__((always_inline)) const size_t getRows() const { return rows; }
+        inline __attribute__((always_inline)) const size_t getCols() const { return cols; }
 
         inline __attribute__((always_inline)) Matrix transpose() const {
             // try {
-                Matrix res(getCols(), getRows());
-                for (size_t i = 0; i < res.getRows(); ++i) {
-                    for (size_t j = 0; j < res.getCols(); ++j) {
-                        res.data[i][j] = data[j][i];
+                Matrix res(cols, rows);
+                for (size_t i = 0; i < res.rows; ++i) {
+                    for (size_t j = 0; j < res.cols; ++j) {
+                        res.data[i*res.cols+j] = data[j*cols+i];
                     }
                 }
                 return res;
@@ -259,10 +241,9 @@ namespace MachineLearning {
                 // The number of rows is the number of neurons here,
                 // the number of columns is the number of neurons in the previous layer
                 // weights.data = std::vector<std::vector<double>>(numNeurons, std::vector<double>(prev->neurons.size()));
-                weights.data.resize(numNeurons);
-                for (size_t i = 0; i < numNeurons; ++i) {
-                    weights.data.at(i).resize(prev->neurons.size());
-                }
+                weights.data.resize(numNeurons*prev->neurons.size());
+                weights.rows = numNeurons;
+                weights.cols = prev->neurons.size();
             }
 
             Layer(size_t numNeurons) {
@@ -275,10 +256,9 @@ namespace MachineLearning {
             void updateWeightDimensions() {
                 auto prev = this->prev.lock();
                 // weights.data = std::vector<std::vector<double>>(neurons.size(), std::vector<double>(prev->neurons.size()));
-                weights.data.resize(neurons.size());
-                for (size_t i = 0; i < neurons.size(); ++i) {
-                    weights.data.at(i).resize(prev->neurons.size());
-                }
+                weights.data.resize(neurons.size()*prev->neurons.size());
+                weights.rows = neurons.size();
+                weights.cols = prev->neurons.size();
             }
 
             const MachineLearning::Matrix getWeights() const {
@@ -294,7 +274,7 @@ namespace MachineLearning {
             }
 
             double& weightAt(size_t row, size_t col) {
-                return weights.data.at(row).at(col);
+                return weights.at(row, col);
             }
 
             Neuron& neuronAt(size_t i) {
@@ -426,9 +406,9 @@ namespace MachineLearning {
 
                         // delC/delwljk = a(l-1)k*error(l)j
                         // current layer: j+1
-                        for (size_t k = 0; k < derivatives.at(j).weights.getRows(); ++k) {
-                            for (size_t l = 0; l < derivatives.at(j).weights.getCols(); ++l) {
-                                derivatives.at(j).weights.data.at(k).at(l) += layers.at(j)->getNeurons().at(l).activation * errors.at(j).at(k);
+                        for (size_t k = 0; k < derivatives.at(j).weights.rows; ++k) {
+                            for (size_t l = 0; l < derivatives.at(j).weights.cols; ++l) {
+                                derivatives.at(j).weights.at(k, l) += layers.at(j)->getNeurons().at(l).activation * errors.at(j).at(k);
                             }
                         }
                     }
@@ -442,7 +422,7 @@ namespace MachineLearning {
 
                     for (size_t j = 0; j < derivatives.at(i).weights.getRows(); ++j) {
                         for (size_t k = 0; k < derivatives.at(i).weights.getCols(); ++k) {
-                            derivatives.at(i).weights.data.at(j).at(k) /= trainingData.size();
+                            derivatives.at(i).weights.at(j, k) /= trainingData.size();
                         }
                     }
                 }

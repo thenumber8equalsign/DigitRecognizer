@@ -9,9 +9,11 @@ int main() {
     vec.push_back(2);
     vec.push_back(3);
 
-    mat.data.push_back({1, 0, 0});
-    mat.data.push_back({0, 1, 0});
-    mat.data.push_back({0, 0, 1});
+    mat.data = {1, 0, 0,
+                0, 1, 0,
+                0, 0, 1};
+    mat.rows = 3;
+    mat.cols = 3;
 
     vec = mat * vec;
 
@@ -25,20 +27,21 @@ int main() {
     mat = MachineLearning::Matrix();
     MachineLearning::Matrix b;
 
-    mat.data.push_back({1, 0, 1});
-    mat.data.push_back({2, 1, 1});
-    mat.data.push_back({0, 1, 1});
-    mat.data.push_back({1, 1, 2});
+    mat.data = {1, 0, 1,
+                2, 1, 1,
+                0, 1, 1,
+                1, 1, 2};
+    mat.rows = 4;
+    mat.cols = 3;
 
-    b.data.push_back({1, 2, 1});
-    b.data.push_back({2, 3, 1});
-    b.data.push_back({4, 2, 2});
+    b.data = {1, 2, 1, 2, 3, 1, 4, 2, 2};
+    b.rows = 3;
+    b.cols = 3;
 
     MachineLearning::Matrix expected;
-    expected.data.push_back({5, 4, 3});
-    expected.data.push_back({8, 9, 5});
-    expected.data.push_back({6, 5, 3});
-    expected.data.push_back({11, 9, 6});
+    expected.data = {5,4,3,8,9,5,6,5,3,11,9,6};
+    expected.rows = 4;
+    expected.cols = 3;
 
     mat * b;
     if (mat * b == expected) {
@@ -49,9 +52,9 @@ int main() {
 
 
     mat = MachineLearning::Matrix();
-    mat.data.push_back({0, 0, 1});
-    mat.data.push_back({0, 1, 0});
-    mat.data.push_back({1, 0, 0});
+    mat.data = {0,0,1,0,1,0,1,0,0};
+    mat.rows = 3;
+    mat.cols = 3;
 
     vec = mat * vec;
     if (vec[0] == 3 && vec[1] == 2 && vec[2] == 1) {
@@ -67,15 +70,14 @@ int main() {
      * [ 0 0 1]]*/
 
     mat = MachineLearning::Matrix();
-    mat.data.push_back({1, 0, 0});
-    mat.data.push_back({-2, 1, 0});
-    mat.data.push_back({0, 0, 1});
-
+    mat.data = {1,0,0,-2,1,0,0,0,1};
+    mat.rows = 3;
+    mat.cols = 3;
 
     expected = MachineLearning::Matrix();
-    expected.data.push_back({1, 2, 1});
-    expected.data.push_back({0, -1, -1});
-    expected.data.push_back({4, 2, 2});
+    expected.data = {1,2,1,0,-1,-1,4,2,2};
+    expected.rows = 3;
+    expected.cols = 3;
 
     if (mat * b == expected) {
         std::cout << "pass row op" << std::endl;
@@ -85,15 +87,19 @@ int main() {
 
     mat = MachineLearning::Matrix();
 
-    mat.data.push_back({1, 0, 1});
-    mat.data.push_back({2, 1, 1});
-    mat.data.push_back({0, 1, 1});
-    mat.data.push_back({1, 1, 2});
+    mat.data = {1,0,1,
+                2,1,1,
+                0,1,1,
+                1,1,2};
+    mat.rows = 4;
+    mat.cols = 3;
 
     expected = MachineLearning::Matrix();
-    expected.data.push_back({1, 2, 0, 1});
-    expected.data.push_back({0, 1, 1, 1});
-    expected.data.push_back({1, 1, 1, 2});
+    expected.data = {1,2,0,1,
+                    0,1,1,1,
+                    1,1,1,2};
+    expected.rows = 3;
+    expected.cols = 4;
 
     if (mat.transpose() == expected) {
         std::cout << "pass transpose" << std::endl;

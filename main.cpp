@@ -166,10 +166,10 @@ int main() {
         // Use the gradient descent
         double mag = 0;
         for (size_t j = 0; j < s.size(); ++j) {
-            for (size_t k = 0; k < s.at(j).weights.getRows(); ++k) {
-                for (size_t l = 0; l < s.at(j).weights.getCols(); ++l) {
-                    model.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.at(k).at(l) * LEARN_RATE;
-                    derivatives[j].weights[k][l] = 0;
+            for (size_t k = 0; k < s.at(j).weights.rows; ++k) {
+                for (size_t l = 0; l < s.at(j).weights.cols; ++l) {
+                    model.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.at(k, l) * LEARN_RATE;
+                    derivatives[j].weights.at(k, l) = 0;
                     mag += model.layers.at(j+1)->weightAt(k, l) * model.layers.at(j+1)->weightAt(k, l);
                 }
             }
