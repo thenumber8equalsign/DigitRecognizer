@@ -135,6 +135,9 @@ int main() {
     bool brokeAvg = false;
 
 
+    std::vector<double> expected(10);
+
+
     std::vector<MachineLearning::ParameterStruct> derivatives(layers.size()-1);
     for (size_t j = 1; j < layers.size(); ++j) {
         derivatives.at(j-1).biases = std::vector<double>(layers.at(j)->getBiases().size());
@@ -145,7 +148,7 @@ int main() {
     model.prepare();
 
     for (size_t i = 0; i < 99999; ++i) {
-        std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(derivatives, errors);
+        std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(derivatives, errors, expected);
 
         // Use the gradient descent
         for (size_t j = 0; j < s.size(); ++j) {

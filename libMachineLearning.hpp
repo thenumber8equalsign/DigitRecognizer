@@ -381,15 +381,14 @@ namespace MachineLearning {
                 }
             }
 
-            std::vector<ParameterStruct> backPropagate(std::vector<ParameterStruct>& derivatives, std::vector<std::vector<double>>& errors) {
+            std::vector<ParameterStruct> backPropagate(std::vector<ParameterStruct>& derivatives, std::vector<std::vector<double>>& errors, std::vector<double>& expected) {
                 // http://neuralnetworksanddeeplearning.com/chap2.html
 
                 for (size_t i = 0; i < trainingData.size(); ++i) {
                     // Load the data
-                    auto img = trainingData.at(i).first;
-                    auto lab = trainingData.at(i).second;
+                    const auto& img = trainingData.at(i).first;
+                    const auto& lab = trainingData.at(i).second;
 
-                    std::vector<double> expected(10);
                     for (size_t j = 0; j < expected.size(); ++j) {
                         if (j == lab) {
                             expected.at(j) = 1.0;
