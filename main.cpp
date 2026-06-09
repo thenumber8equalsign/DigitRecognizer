@@ -170,14 +170,14 @@ int main() {
                 for (size_t l = 0; l < s.at(j).weights.cols; ++l) {
                     model.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.at(k, l) * LEARN_RATE;
                     derivatives[j].weights.at(k, l) = 0;
-                    mag += model.layers.at(j+1)->weightAt(k, l) * model.layers.at(j+1)->weightAt(k, l);
+                    mag += s.at(j).weights.at(k,l) * s.at(j).weights.at(k,l);
                 }
             }
 
             for (size_t k = 0; k < s.at(j).biases.size(); ++k) {
                 model.layers.at(j+1)->biasAt(k) -= s.at(j).biases.at(k) * LEARN_RATE;
                 derivatives[j].biases[k] = 0;
-                mag += model.layers.at(j+1)->biasAt(k) * model.layers.at(j+1)->biasAt(k);
+                mag += s.at(j).biases.at(k) * s.at(j).biases.at(k);
             }
         }
 
