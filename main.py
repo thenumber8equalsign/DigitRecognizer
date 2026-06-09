@@ -1,10 +1,11 @@
 # This python script converts the MNIST dataset to the stuff
 
+import struct
+
 from tensorflow.keras.datasets import mnist
 
 (X_train, Y_train), (X_test, Y_test) = mnist.load_data()
 
-import struct
 
 for i in range(len(X_train)):
     with open(f"trainingData/{i}-{Y_train[i]}.bin", "wb") as binary_file:
