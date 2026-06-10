@@ -4,4 +4,4 @@ next n:
 
 next n-1:
 biases (each as the raw representation of a double)
-weights (again raw, and remember that the # of rows and cols can be derived from the # of neurons)
+weights (again raw, and remember that the # of rows and cols can be derived from the # of neurons, rows = new layer, cols = old layer)

@@ -67,6 +67,7 @@ std::vector<std::pair<MachineLearning::Image, char>> readData(std::string dir) {
         file.read(reinterpret_cast<char*>(&label), 1);
         file.read(reinterpret_cast<char*>(&width), 1);
         file.read(reinterpret_cast<char*>(&height), 1);
+        file.close();
         MachineLearning::Image image;
         for (size_t i = 0; i < width*height; ++i) {
             unsigned char val = 0;
@@ -83,6 +84,35 @@ std::vector<std::pair<MachineLearning::Image, char>> readData(std::string dir) {
         // if (i >= 100) break;
     }
     return images;
+}
+
+// Assumes little endian (too lazy)
+bool writeParamsToFile(const std::string& path, const std::vector<MachineLearning::ParameterStruct>& params, const std::vector<size_t>& neuronsInLayers) {
+    std::ofstream file(path, std::ofstream::binary);
+    const uint64_t layers = neuronsInLayers.size();
+    file.write(reinterpret_cast<const char*>(&layers), sizeof(uint64_t));
+
+    for (size_t i = 0; i < neuronsInLayers.size(); ++i) {
+        const uint64_t val = static_cast<const uint64_t>(neuronsInLayers[i]);
+        file.write(reinterpret_cast<const char*>(&val), sizeof(uint64_t));
+    }
+
+    for (size_t i = 0; i < params.size() ; ++i) {
+        for (size_t j = 0; j < params.at(i).biases.size(); ++j) {
+            const double val = params.at(i).biases.at(j);
+            file.write(reinterpret_cast<const char*>(&val), sizeof(double));
+        }
+
+        for (size_t j = 0; j < params.at(i).weights.rows; ++j) {
+            for (size_t k = 0; k < params.at(i).weights.cols; ++k) {
+                const double val = params.at(i).weights.get(j,k);
+                file.write(reinterpret_cast<const char*>(&val), sizeof(double));
+            }
+        }
+    }
+
+    file.close();
+    return true;
 }
 
 int main() {
@@ -196,6 +226,7 @@ int main() {
         printw("Current gradient magnitude: %g\n", mag);
         printw("Current cost: %g\n", model.computeCost(trainingDataIndicies, expected, BATCH_SIZE));
         printw("Press q to quit training\n");
+        refresh();
         if (mag < 1e-7) {
             reason = Magnitude;
             break;
@@ -213,18 +244,18 @@ int main() {
     endwin();
     switch (reason) {
         case Iterations:
-            std::cout << "Exited because the number of iterations was very large" << std::endl;
+            std::cout << "Exited because the number of iterations was very large\n";
             break;
         case Magnitude:
-            std::cout << "Exited because the magnitude of the gradient was very little" << std::endl;
+            std::cout << "Exited because the magnitude of the gradient was very little\n";
             break;
         case Exit:
-            std::cout << "Exited because you told me to" << std::endl;
+            std::cout << "Exited because you told me to\n";
             break;
     }
-    std::cout << "Done training!" << std::endl;
+    std::cout << "Done training!\n";
 
-    std::cout << "Testing..." << std::endl;
+    std::cout << "Testing...\n";
     std::cout << "Reading testing data..." << std::endl;
     auto testingData = readData("testingData");
     size_t numCorrect = 0;
@@ -245,7 +276,7 @@ int main() {
 
         std::pair<size_t, double> prediction = {0,-INFINITY};
         for (size_t j = 0; j < model.layers.at(model.layers.size()-1)->getNeurons().size(); ++j) {
-            auto& lay = model.layers.at(model.layers.size()-1);
+            const auto& lay = model.layers.at(model.layers.size()-1);
 
             if (lay->getNeurons().at(j).activation/lastLayerSum > prediction.second) {
                 prediction = {j, lay->getNeurons().at(j).activation/lastLayerSum};
@@ -256,8 +287,72 @@ int main() {
             ++numCorrect;
         }
     }
+
+    std::cout << "Accuracy: " << numCorrect*1.0/testingData.size() << "\n";
+
+    // Test the stupidity of the model (give it all zeros)
+    // TODO: Random noise
+    for (size_t i = 0; i < model.layers.at(0)->getNeurons().size(); ++i) {
+        model.layers.at(0)->neuronAt(i).activation = 0;
+    }
+    for (size_t i = 1; i < model.layers.size(); ++i) {
+        model.layers.at(i)->compute();
+    }
+
+    double lastLayerSum = 0;
+    for (size_t j = 0; j < model.layers.at(model.layers.size()-1)->getNeurons().size(); ++j) {
+        lastLayerSum += model.layers.at(model.layers.size()-1)->getNeurons().at(j).activation;
+    }
+
+    std::vector<std::pair<size_t, double>> predictions;
+    for (size_t j = 0; j < model.layers.at(model.layers.size()-1)->getNeurons().size(); ++j) {
+        const auto& lay = model.layers.at(model.layers.size()-1);
+        predictions.push_back({j, lay->getNeurons().at(j).activation/lastLayerSum});
+    }
+
+    // sort predictions by second thing
+    struct {
+        bool operator()(const std::pair<size_t, double>& a, const std::pair<size_t, double>& b) {
+            // return true if a goes BEFORE b
+            return a.second > b.second;
+        }
+    } comp;
+
+    std::sort(predictions.begin(), predictions.end(), comp);
+    std::cout << "Here is what the model thinks about the empty image (all dark)\n";
+    for (size_t i = 0; i < predictions.size(); ++i) {
+        std::cout << predictions[i].first << " " << predictions[i].second*100 << "%\n";
+    }
+
+
     model.end();
 
-    std::cout << "Accuracy: " << numCorrect*1.0/testingData.size() << std::endl;
+    const std::filesystem::path exePath(getExecutablePath());
+    const std::filesystem::path exeDir(exePath.string().substr(0,exePath.string().length()-exePath.filename().string().length()));
+    std::cout << "Would you like to save these parameters to " << exeDir.string() + "params.bin" << "? [y\\n] " << std::flush;
+
+    std::string res;
+    std::cin >> res;
+
+    if (res == "y") {
+        std::cout << "Saving to file: " << exeDir.string() + "params.bin" << std::endl;
+        std::vector<MachineLearning::ParameterStruct> params(model.layers.size()-1);
+        for (size_t i = 0; i < model.layers.size()-1; ++i) {
+            params.at(i).weights = model.layers.at(i+1)->getWeights();
+            params.at(i).biases = model.layers.at(i+1)->getBiases();
+        }
+
+        std::vector<size_t> neuronsInLayers(model.layers.size());
+        for (size_t i = 0; i < neuronsInLayers.size(); ++i) {
+            neuronsInLayers[i] = model.layers[i]->getNeurons().size();
+        }
+        if (writeParamsToFile(exeDir.string() + "params.bin", params, neuronsInLayers)) {
+            // Success
+        } else {
+            // Fail
+        }
+    } else {
+        std::cout << "Not saving" << std::endl;
+    }
     return 0;
 }
