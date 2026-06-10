@@ -71,7 +71,7 @@ std::vector<std::pair<MachineLearning::Image, char>> readData(std::string dir) {
         file.read(reinterpret_cast<char*>(&label), 1);
         file.read(reinterpret_cast<char*>(&width), 1);
         file.read(reinterpret_cast<char*>(&height), 1);
-        file.close();
+
         MachineLearning::Image image;
         for (size_t i = 0; i < width*height; ++i) {
             unsigned char val = 0;
@@ -79,6 +79,7 @@ std::vector<std::pair<MachineLearning::Image, char>> readData(std::string dir) {
 
             image.at(i/height).at(i%width) = val / 255.0;
         }
+        file.close();
 
         auto s = split(dir_entry.path().string(), "-");
         // if (s[s.size()-1] == "2.bin") {
