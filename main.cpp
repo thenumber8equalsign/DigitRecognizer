@@ -14,7 +14,7 @@
 
 #define LEARN_RATE 0.5
 
-#define BATCH_SIZE 500
+#define BATCH_SIZE 1000
 
 enum BreakReason {
     Iterations, Magnitude, Exit
@@ -208,7 +208,7 @@ BreakReason trainModel(MachineLearning::Model& model) {
     model.prepare();
 
     for (size_t i = 0; i < 999999; ++i) {
-        std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(derivatives, errors, expected);
+        std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(derivatives, errors, expected, trainingDataIndicies, BATCH_SIZE);
 
         // Reset derivatives, errors, and expected
         for (size_t j = 0; j < errors.size(); ++j) {

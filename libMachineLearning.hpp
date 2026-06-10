@@ -357,14 +357,17 @@ namespace MachineLearning {
                 }
             }
 
-            std::vector<ParameterStruct> backPropagate(std::vector<ParameterStruct>& derivatives, std::vector<std::vector<double>>& errors, std::vector<double>& expected) {
+            std::vector<ParameterStruct> backPropagate(std::vector<ParameterStruct>& derivatives, std::vector<std::vector<double>>& errors, std::vector<double>& expected, std::vector<size_t>& trainingDataIndicies, const size_t batch_size) {
                 // http://neuralnetworksanddeeplearning.com/chap2.html
                 std::vector<Matrix> transposedWeights(errors.size()-1);
                 for (size_t i = 0; i < transposedWeights.size(); ++i) {
                     transposedWeights[i] = layers[i+2]->getWeights().transpose();
                 }
 
-                for (size_t i = 0; i < trainingData.size(); ++i) {
+                std::shuffle(trainingDataIndicies.begin(), trainingDataIndicies.end(), rng);
+
+                for (size_t it = 0; it < batch_size; ++it) {
+                    const size_t i = trainingDataIndicies[it];
                     // Load the data
                     const auto& img = trainingData.at(i).first;
                     const auto& lab = trainingData.at(i).second;
