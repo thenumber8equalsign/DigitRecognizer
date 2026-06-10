@@ -16,6 +16,10 @@
 
 #define BATCH_SIZE 500
 
+enum BreakReason {
+    Iterations, Magnitude, Exit
+};
+
 #ifdef __linux__
 std::string getExecutablePath() {
     char path[PATH_MAX+1];
@@ -87,7 +91,36 @@ std::vector<std::pair<MachineLearning::Image, char>> readData(std::string dir) {
 }
 
 // Assumes little endian (too lazy)
-bool writeParamsToFile(const std::string& path, const std::vector<MachineLearning::ParameterStruct>& params, const std::vector<size_t>& neuronsInLayers) {
+void readParamsFromFile(const std::string& path, std::vector<MachineLearning::ParameterStruct>& params) {
+    std::ifstream file(path, std::ifstream::binary);
+    uint64_t numLayers = 0;
+    file.read(reinterpret_cast<char*>(&numLayers), sizeof(uint64_t));
+    std::vector<size_t> neuronsInLayers(numLayers);
+    for (size_t i = 0; i < numLayers; ++i) {
+        file.read(reinterpret_cast<char*>(&neuronsInLayers[i]), sizeof(size_t));
+    }
+
+    params = std::vector<MachineLearning::ParameterStruct>(numLayers-1);
+    for (size_t i = 0; i < params.size(); ++i) {
+        // # biases = # neurons
+        params[i].biases = std::vector<double>(neuronsInLayers[i+1]);
+        for (size_t j = 0; j < neuronsInLayers[i+1]; ++j) {
+            file.read(reinterpret_cast<char*>(&params[i].biases[j]), sizeof(double));
+        }
+
+        params[i].weights = MachineLearning::Matrix(neuronsInLayers[i+1], neuronsInLayers[i]);
+        for (size_t j = 0; j < params[i].weights.rows; ++j) {
+            for (size_t k = 0; k < params[i].weights.cols; ++k) {
+                file.read(reinterpret_cast<char*>(&params[i].weights.at(j, k)), sizeof(double));
+            }
+        }
+    }
+
+    file.close();
+}
+
+// Assumes little endian (too lazy)
+void writeParamsToFile(const std::string& path, const std::vector<MachineLearning::ParameterStruct>& params, const std::vector<size_t>& neuronsInLayers) {
     std::ofstream file(path, std::ofstream::binary);
     const uint64_t layers = neuronsInLayers.size();
     file.write(reinterpret_cast<const char*>(&layers), sizeof(uint64_t));
@@ -112,25 +145,19 @@ bool writeParamsToFile(const std::string& path, const std::vector<MachineLearnin
     }
 
     file.close();
-    return true;
 }
 
-int main() {
-    MachineLearning::Model model;
+void initializeLayers(std::mt19937& rng, MachineLearning::Model& model) {
+    std::uniform_int_distribution<std::mt19937::result_type> dist(0,2000);
     std::vector<std::shared_ptr<MachineLearning::Layer>> layers(1 + 2 + 1); // 2 hidden layers
     layers.at(0) = std::make_shared<MachineLearning::Layer>(28*28);
     layers.at(1) = std::make_shared<MachineLearning::Layer>(16);
     layers.at(2) = std::make_shared<MachineLearning::Layer>(16);
     layers.at(layers.size()-1) = std::make_shared<MachineLearning::Layer>(10);
 
-    std::random_device dev;
-    std::mt19937 rng(dev());
-    std::uniform_int_distribution<std::mt19937::result_type> dist(0,2000);
-
     model.layers = layers;
     model.linkLayers();
 
-    std::cout << "Initializing layers..." << std::endl;
     for (size_t i = 1; i < layers.size(); ++i) {
 
         auto weights = layers.at(i)->getWeights();
@@ -150,33 +177,26 @@ int main() {
             layers.at(i)->biasAt(j) = ((long)dist(rng)-1000) / 1000.0 * v;
         }
     }
+}
 
-    std::cout << "Reading training data..." << std::endl;
-    model.trainingData = readData("trainingData");
-
-
-    std::cout << "Training..." << std::endl;
-
+BreakReason trainModel(MachineLearning::Model& model) {
     initscr();
     clear();
-    timeout(0);
+    timeout(0); // Switch to non-blocking input
 
-    enum BreakReason {
-        Iterations, Magnitude, Exit
-    };
     BreakReason reason = Iterations;
 
     std::vector<double> expected(10);
 
-    std::vector<MachineLearning::ParameterStruct> derivatives(layers.size()-1);
-    for (size_t j = 1; j < layers.size(); ++j) {
-        derivatives.at(j-1).biases = std::vector<double>(layers.at(j)->getBiases().size());
-        derivatives.at(j-1).weights = MachineLearning::Matrix(layers.at(j)->getWeights().getRows(), layers.at(j)->getWeights().getCols());
+    std::vector<MachineLearning::ParameterStruct> derivatives(model.layers.size()-1);
+    for (size_t j = 1; j < model.layers.size(); ++j) {
+        derivatives.at(j-1).biases = std::vector<double>(model.layers.at(j)->getBiases().size());
+        derivatives.at(j-1).weights = MachineLearning::Matrix(model.layers.at(j)->getWeights().getRows(), model.layers.at(j)->getWeights().getCols());
     }
 
-    std::vector<std::vector<double>> errors(layers.size()-1);
+    std::vector<std::vector<double>> errors(model.layers.size()-1);
     for (size_t i = 0; i < errors.size(); ++i) {
-        errors[i] = std::vector<double>(layers.at(i+1)->getNeurons().size());
+        errors[i] = std::vector<double>(model.layers.at(i+1)->getNeurons().size());
     }
 
     std::vector<size_t> trainingDataIndicies(model.trainingData.size());
@@ -242,6 +262,16 @@ int main() {
     }
 
     endwin();
+    return reason;
+}
+
+void initAndTrain(std::mt19937& rng, MachineLearning::Model& model) {
+    std::cout << "Initializing layers..." << std::endl;
+    initializeLayers(rng, model);
+    std::cout << "Reading training data..." << std::endl;
+    model.trainingData = readData("trainingData");
+    std::cout << "Training..." << std::endl;
+    BreakReason reason = trainModel(model);
     switch (reason) {
         case Iterations:
             std::cout << "Exited because the number of iterations was very large\n";
@@ -254,6 +284,48 @@ int main() {
             break;
     }
     std::cout << "Done training!\n";
+}
+
+int main() {
+    const std::filesystem::path exePath(getExecutablePath());
+    const std::filesystem::path exeDir(exePath.string().substr(0,exePath.string().length()-exePath.filename().string().length()));
+
+    MachineLearning::Model model;
+
+    std::random_device dev;
+    std::mt19937 rng(dev());
+
+    std::cout << "Welcome to my Digit Recognizer, would you like to load parameters from " << exeDir.string() + "params.bin" << "? [y\\n] " << std::flush;
+    std::string res;
+    std::cin >> res;
+    if (res == "y") {
+        std::vector<MachineLearning::ParameterStruct> params;
+        std::cout << "Reading parameters..." << std::endl;
+        readParamsFromFile(exeDir.string() + "params.bin", params);
+        std::cout << "Initializing model..." << std::endl;
+        std::vector<std::shared_ptr<MachineLearning::Layer>> layers(params.size()+1);
+        // Initialize the first layer
+        layers.at(0) = std::make_shared<MachineLearning::Layer>(params.at(0).weights.cols);
+        // Now initialize the other layers
+        for (size_t i = 1; i < layers.size(); ++i) {
+            layers.at(i) = std::make_shared<MachineLearning::Layer>(layers.at(i-1), params.at(i-1).biases.size());
+            for (size_t j = 0; j < layers.at(i)->getWeights().rows; ++j) {
+                for (size_t k = 0; k < layers.at(i)->getWeights().cols; ++k) {
+                    layers.at(i)->weightAt(j, k) = params.at(i-1).weights.get(j,k);
+                }
+            }
+
+            for (size_t j = 0; j < layers.at(i)->getBiases().size(); ++j) {
+                layers.at(i)->biasAt(j) = params.at(i-1).biases.at(j);
+            }
+        }
+
+        model.layers = layers;
+        model.prepare();
+    } else {
+        initAndTrain(rng, model);
+    }
+
 
     std::cout << "Testing...\n";
     std::cout << "Reading testing data..." << std::endl;
@@ -327,11 +399,8 @@ int main() {
 
     model.end();
 
-    const std::filesystem::path exePath(getExecutablePath());
-    const std::filesystem::path exeDir(exePath.string().substr(0,exePath.string().length()-exePath.filename().string().length()));
     std::cout << "Would you like to save these parameters to " << exeDir.string() + "params.bin" << "? [y\\n] " << std::flush;
 
-    std::string res;
     std::cin >> res;
 
     if (res == "y") {
@@ -346,11 +415,7 @@ int main() {
         for (size_t i = 0; i < neuronsInLayers.size(); ++i) {
             neuronsInLayers[i] = model.layers[i]->getNeurons().size();
         }
-        if (writeParamsToFile(exeDir.string() + "params.bin", params, neuronsInLayers)) {
-            // Success
-        } else {
-            // Fail
-        }
+        writeParamsToFile(exeDir.string() + "params.bin", params, neuronsInLayers);
     } else {
         std::cout << "Not saving" << std::endl;
     }
