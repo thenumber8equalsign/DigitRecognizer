@@ -1,0 +1,7 @@
+1st uint64_t: # of layers, (as n for the rest of the spec)
+next n:
+# of nodes in layer (uint64_t)
+
+next n-1:
+biases (each as the raw representation of a double)
+weights (again raw, and remember that the # of rows and cols can be derived from the # of neurons)
