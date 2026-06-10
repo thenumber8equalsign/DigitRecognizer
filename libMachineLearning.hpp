@@ -345,15 +345,6 @@ namespace MachineLearning {
                 }
             }
 
-            double costDerivative(double activation, double expected) {
-                return 2 * (activation - expected);
-            }
-
-            constexpr double weightedInputWithBias(double b) {
-                return 1;
-            }
-
-
             void prepare() {
                 for (size_t i = 0; i < layers.size(); ++i) {
                     layers[i]->prepareCompute();
@@ -396,7 +387,7 @@ namespace MachineLearning {
 
                     for (size_t j = 0; j < errors.at(errors.size()-1).size(); ++j) {
                         auto& er = errors.at(errors.size()-1);
-                        er.at(j) = (layers[layers.size()-1]->getNeurons().at(j).activation - expected.at(j));
+                        er.at(j) = 2*(layers[layers.size()-1]->getNeurons().at(j).activation - expected.at(j));
                         er.at(j) *= sigmoidDerivative(layers[layers.size()-1]->getNeurons().at(j).weightedInput);
                     }
 
