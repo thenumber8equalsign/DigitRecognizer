@@ -91,7 +91,6 @@ std::vector<std::pair<MachineLearning::Image, char>> readData(std::string dir) {
     return images;
 }
 
-// Assumes little endian (too lazy)
 void readParamsFromFile(const std::string& path, std::vector<MachineLearning::ParameterStruct>& params) {
     std::ifstream file(path, std::ifstream::binary);
     uint64_t numLayers = 0;
@@ -120,7 +119,6 @@ void readParamsFromFile(const std::string& path, std::vector<MachineLearning::Pa
     file.close();
 }
 
-// Assumes little endian (too lazy)
 void writeParamsToFile(const std::string& path, const std::vector<MachineLearning::ParameterStruct>& params, const std::vector<size_t>& neuronsInLayers) {
     std::ofstream file(path, std::ofstream::binary);
     const uint64_t layers = neuronsInLayers.size();
