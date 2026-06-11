@@ -245,7 +245,6 @@ BreakReason trainModel(MachineLearning::Model& model) {
         printw("Current gradient magnitude: %g\n", mag);
         printw("Current cost: %g\n", model.computeCost(trainingDataIndicies, expected, BATCH_SIZE));
         printw("Press q to quit training\n");
-        refresh();
         if (mag < 1e-7) {
             reason = Magnitude;
             break;
