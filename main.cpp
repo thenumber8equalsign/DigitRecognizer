@@ -264,9 +264,9 @@ BreakReason trainModel(MachineLearning::Model& model) {
     return reason;
 }
 
-void initAndTrain(std::mt19937& rng, MachineLearning::Model& model) {
+void initAndTrain(std::mt19937& rng, MachineLearning::Model& model, bool init = true) {
     std::cout << "Initializing layers..." << std::endl;
-    initializeLayers(rng, model);
+    if (init) initializeLayers(rng, model);
     std::cout << "Reading training data..." << std::endl;
     model.trainingData = readData("trainingData");
     std::cout << "Training..." << std::endl;
