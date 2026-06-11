@@ -322,6 +322,12 @@ int main() {
 
         model.layers = layers;
         model.prepare();
+
+        std::cout << "Would you like to continue training? [y\\n] " << std::flush;
+        std::cin >> res;
+        if (res == "y") {
+            initAndTrain(rng, model, false);
+        }
     } else {
         initAndTrain(rng, model);
     }
