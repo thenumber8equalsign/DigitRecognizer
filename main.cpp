@@ -179,6 +179,9 @@ void initializeLayers(std::mt19937& rng, MachineLearning::Model& model) {
 }
 
 BreakReason trainModel(MachineLearning::Model& model) {
+    std::cout << "Reading testing data..." << std::endl;
+    auto testingData = readData("testingData");
+
     initscr();
     clear();
     timeout(0); // Switch to non-blocking input
@@ -245,6 +248,7 @@ BreakReason trainModel(MachineLearning::Model& model) {
         printw("Current gradient magnitude: %g\n", mag);
         printw("Current cost: %g\n", model.computeCost(trainingDataIndicies, expected, BATCH_SIZE));
         printw("Press q to quit training\n");
+        printw("Press t to pause and test accuracy with testing data\n");
         if (mag < 1e-7) {
             reason = Magnitude;
             break;
@@ -256,6 +260,42 @@ BreakReason trainModel(MachineLearning::Model& model) {
         if ((ch = getch()) != ERR && ch < 400 && ch == 'q') {
             reason = Exit;
             break;
+        } else if (ch == 't') {
+            // test the model (copied from main)
+            size_t numCorrect = 0;
+            for (size_t i = 0; i < testingData.size(); ++i) {
+                char lab = testingData.at(i).second;
+                for (size_t j = 0; j < model.layers.at(0)->getNeurons().size(); ++j) {
+                    model.layers.at(0)->neuronAt(j).activation = testingData.at(i).first.at(j / 28).at(j % 28);
+                }
+
+                for (size_t j = 1; j < model.layers.size(); ++j) {
+                    model.layers.at(j)->compute();
+                }
+
+                double lastLayerSum = 0;
+                for (size_t j = 0; j < model.layers.at(model.layers.size()-1)->getNeurons().size(); ++j) {
+                    lastLayerSum += model.layers.at(model.layers.size()-1)->getNeurons().at(j).activation;
+                }
+
+                std::pair<size_t, double> prediction = {0,-INFINITY};
+                for (size_t j = 0; j < model.layers.at(model.layers.size()-1)->getNeurons().size(); ++j) {
+                    const auto& lay = model.layers.at(model.layers.size()-1);
+
+                    if (lay->getNeurons().at(j).activation/lastLayerSum > prediction.second) {
+                        prediction = {j, lay->getNeurons().at(j).activation/lastLayerSum};
+                    }
+                }
+
+                if (prediction.first == lab) {
+                    ++numCorrect;
+                }
+            }
+
+            clear();
+            printw("Accuracy: %g\n", numCorrect*1.0/testingData.size());
+            printw("Press any key to continue\n");
+            while (!((ch = getch()) != ERR && ch < 400)); // Keep going until we get a printable character
         }
     }
 
