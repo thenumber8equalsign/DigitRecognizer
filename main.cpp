@@ -410,7 +410,6 @@ int main() {
     std::cout << "Accuracy: " << numCorrect*1.0/testingData.size() << "\n";
 
     // Test the stupidity of the model (give it all zeros)
-    // TODO: Random noise
     for (size_t i = 0; i < model.layers.at(0)->getNeurons().size(); ++i) {
         model.layers.at(0)->neuronAt(i).activation = 0;
     }
