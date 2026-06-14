@@ -150,9 +150,9 @@ void initializeLayers(std::mt19937& rng, MachineLearning::Model& model) {
     std::uniform_int_distribution<std::mt19937::result_type> dist(0,2000);
     std::vector<std::shared_ptr<MachineLearning::Layer>> layers(1 + 3 + 1);
     layers.at(0) = std::make_shared<MachineLearning::Layer>(28*28);
-    layers.at(1) = std::make_shared<MachineLearning::Layer>(16);
-    layers.at(2) = std::make_shared<MachineLearning::Layer>(16);
-    layers.at(3) = std::make_shared<MachineLearning::Layer>(16);
+    layers.at(1) = std::make_shared<MachineLearning::Layer>(64);
+    layers.at(2) = std::make_shared<MachineLearning::Layer>(64);
+    layers.at(3) = std::make_shared<MachineLearning::Layer>(64);
     layers.at(layers.size()-1) = std::make_shared<MachineLearning::Layer>(10);
 
     model.layers = layers;
