@@ -335,6 +335,14 @@ namespace MachineLearning {
             Model(std::vector<std::shared_ptr<Layer>> layers) {
                 this->layers = layers;
             }
+            Model(const Model& other) {
+                layers = std::vector<std::shared_ptr<Layer>>(other.layers.size());
+                trainingData = other.trainingData;
+
+                for (size_t i = 0; i < layers.size(); ++i) {
+                    layers.at(i) = std::make_shared<Layer>(*other.layers.at(i));
+                }
+            }
 
             // connect all of the prev pointers in the layer
             // it literally won't do anything if layers is empty
