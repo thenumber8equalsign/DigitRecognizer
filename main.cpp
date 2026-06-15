@@ -263,14 +263,12 @@ BreakReason trainModel(MachineLearning::Model& masterModel) {
     masterModel.prepare();
 
     for (size_t i = 0; i < 999999; ++i) {
-        // std::vector<MachineLearning::ParameterStruct> s = masterModel.backPropagate(derivatives, errors, expected, trainingDataIndicies, BATCH_SIZE);
         const auto& s = derivativeAccumulator;
         // Reset derivatives, errors, and expected
         for (size_t tr = 0; tr < NUM_THREADS; ++tr) {
             std::shuffle(trainingDataIndicies.begin(), trainingDataIndicies.end(), MachineLearning::rng);
             BackPropParams params = {derivatives[tr], errors[tr], expected[tr], trainingDataIndicies, minMaxPairs[tr].first, minMaxPairs[tr].second};
             threads[tr] = std::thread(multiThreadBackPropagate, std::ref(derivativeAccumulator), std::ref(threadModels[tr]), std::ref(params));
-            // multiThreadBackPropagate(derivativeAccumulator, threadModels[tr], params);
         }
 
         for (size_t tr = 0 ; tr < NUM_THREADS; ++tr) {
