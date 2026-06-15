@@ -368,7 +368,7 @@ BreakReason trainModel(MachineLearning::Model& masterModel) {
             }
 
             clear();
-            printw("Accuracy: %g\n", numCorrect*1.0/testingData.size());
+            printw("Accuracy: %g%%\n", numCorrect*100.0/testingData.size());
             printw("Press any key to continue\n");
             while (!((ch = getch()) != ERR && ch < 400)); // Keep going until we get a printable character
         }
@@ -481,7 +481,7 @@ int main() {
         }
     }
 
-    std::cout << "Accuracy: " << numCorrect*1.0/testingData.size() << "\n";
+    std::cout << "Accuracy: " << numCorrect*100.0/testingData.size() << "%\n";
 
     // Test the stupidity of the model (give it all zeros)
     for (size_t i = 0; i < model.layers.at(0)->getNeurons().size(); ++i) {
