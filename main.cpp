@@ -195,7 +195,7 @@ struct BackPropParams {
     const size_t max;
 };
 
-void multiThreadBackPropagate(std::vector<MachineLearning::ParameterStruct> & accumulator, MachineLearning::Model& model, BackPropParams params) {
+void multiThreadBackPropagate(std::vector<MachineLearning::ParameterStruct> & accumulator, MachineLearning::Model& model, BackPropParams && params) {
     std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(params.derivatives, params.errors, params.expected, params.trainingDataIndicies, params.min, params.max);
 
     gil.lock();
@@ -268,7 +268,7 @@ BreakReason trainModel(MachineLearning::Model& masterModel) {
         // Reset derivatives, errors, and expected
         for (size_t tr = 0; tr < NUM_THREADS; ++tr) {
             BackPropParams params = {derivatives[tr], errors[tr], expected[tr], trainingDataIndicies, minMaxPairs[tr].first, minMaxPairs[tr].second};
-            threads[tr] = std::thread(multiThreadBackPropagate, std::ref(derivativeAccumulator), std::ref(threadModels[tr]), std::ref(params));
+            threads[tr] = std::thread(multiThreadBackPropagate, std::ref(derivativeAccumulator), std::ref(threadModels[tr]), std::move(params));
         }
 
         for (size_t tr = 0 ; tr < NUM_THREADS; ++tr) {
