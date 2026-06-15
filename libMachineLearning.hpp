@@ -5,7 +5,6 @@
 #include <memory>
 #include <array>
 #include <random>
-#include <iostream>
 
 inline std::vector<double> operator + (const std::vector<double>& lhs, const std::vector<double>& rhs) {
     // if (lhs.size() != rhs.size()) throw std::invalid_argument("sizes not equal");
