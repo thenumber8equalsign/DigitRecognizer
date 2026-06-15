@@ -195,7 +195,7 @@ struct BackPropParams {
     const size_t max;
 };
 
-void multiThreadBackPropagate(std::vector<MachineLearning::ParameterStruct> & accumulator, MachineLearning::Model& model, BackPropParams& params) {
+void multiThreadBackPropagate(std::vector<MachineLearning::ParameterStruct> & accumulator, MachineLearning::Model& model, BackPropParams params) {
     std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(params.derivatives, params.errors, params.expected, params.trainingDataIndicies, params.min, params.max);
 
     gil.lock();
