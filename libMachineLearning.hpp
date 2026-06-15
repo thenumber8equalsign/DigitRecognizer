@@ -488,7 +488,7 @@ namespace MachineLearning {
                 // 784 inputs, 10 outputs
                 // first, set the input layers
                 // Use a mini-batch
-                std::shuffle(trainingDataIndicies.begin(), trainingDataIndicies.end(), rng);
+                // std::shuffle(trainingDataIndicies.begin(), trainingDataIndicies.end(), rng);
                 double cost = 0.0;
                 for (size_t it = 0; it < batch_size; ++it) {
                     const size_t& i = trainingDataIndicies[it];
