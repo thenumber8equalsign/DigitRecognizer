@@ -5,6 +5,7 @@
 #include <memory>
 #include <array>
 #include <random>
+#include <iostream>
 
 inline std::vector<double> operator + (const std::vector<double>& lhs, const std::vector<double>& rhs) {
     // if (lhs.size() != rhs.size()) throw std::invalid_argument("sizes not equal");
@@ -344,6 +345,12 @@ namespace MachineLearning {
                 }
             }
 
+            void copyParametersFrom(const Model& other) {
+                for (size_t i = 0; i < layers.size(); ++i) {
+                    layers.at(i) = std::make_shared<Layer>(*other.layers.at(i));
+                }
+            }
+
             // connect all of the prev pointers in the layer
             // it literally won't do anything if layers is empty
             void linkLayers() {
@@ -365,17 +372,22 @@ namespace MachineLearning {
                 }
             }
 
-            std::vector<ParameterStruct> backPropagate(std::vector<ParameterStruct>& derivatives, std::vector<std::vector<double>>& errors, std::vector<double>& expected, std::vector<size_t>& trainingDataIndicies, const size_t batch_size) {
+            std::vector<ParameterStruct> backPropagate(
+                std::vector<ParameterStruct>& derivatives,
+                std::vector<std::vector<double>>& errors,
+                std::vector<double>& expected,
+                const std::vector<size_t>& trainingDataIndicies,
+                const size_t min,
+                const size_t max
+            ) {
                 // http://neuralnetworksanddeeplearning.com/chap2.html
                 std::vector<Matrix> transposedWeights(errors.size()-1);
                 for (size_t i = 0; i < transposedWeights.size(); ++i) {
-                    transposedWeights[i] = layers[i+2]->getWeights().transpose();
+                    transposedWeights.at(i) = layers.at(i+2)->getWeights().transpose();
                 }
 
-                std::shuffle(trainingDataIndicies.begin(), trainingDataIndicies.end(), rng);
-
-                for (size_t it = 0; it < batch_size; ++it) {
-                    const size_t i = trainingDataIndicies[it];
+                for (size_t it = min; it < max; ++it) {
+                    const size_t i = trainingDataIndicies.at(it);
                     // Load the data
                     const auto& img = trainingData.at(i).first;
                     const auto& lab = trainingData.at(i).second;
@@ -398,12 +410,12 @@ namespace MachineLearning {
 
                     for (size_t j = 0; j < errors.at(errors.size()-1).size(); ++j) {
                         auto& er = errors.at(errors.size()-1);
-                        er.at(j) = 2*(layers[layers.size()-1]->getNeurons().at(j).activation - expected.at(j));
-                        er.at(j) *= sigmoidDerivative(layers[layers.size()-1]->getNeurons().at(j).weightedInput);
+                        er.at(j) = 2*(layers.at(layers.size()-1)->getNeurons().at(j).activation - expected.at(j));
+                        er.at(j) *= sigmoidDerivative(layers.at(layers.size()-1)->getNeurons().at(j).weightedInput);
                     }
 
                     for (size_t j = errors.size()-2; j > 0; --j) {
-                        const auto& trans = transposedWeights[j];
+                        const auto& trans = transposedWeights.at(j);
                         for (size_t k = 0; k < errors.at(j).size(); ++k) {
                             double val = 0.0;
                             for (size_t l = 0; l < errors.at(j+1).size(); ++l) {
@@ -415,8 +427,8 @@ namespace MachineLearning {
                     // Since if we change the above loop to be j>=0, we get an error because size_t is unsigned, therefore we must add this hard-coded version for j=0
                     for (size_t j = 0; j < errors.at(0).size(); ++j) {
                         double val = 0.0;
-                        for (size_t k = 0; k < transposedWeights[0].cols; ++k) {
-                            val += transposedWeights[0].get(j, k) * errors.at(1).at(k);
+                        for (size_t k = 0; k < transposedWeights.at(0).cols; ++k) {
+                            val += transposedWeights.at(0).get(j, k) * errors.at(1).at(k);
                         }
                         errors.at(0).at(j) = val * sigmoidDerivative(layers.at(1)->getNeurons().at(j).weightedInput);
                     }
@@ -433,19 +445,6 @@ namespace MachineLearning {
                             for (size_t l = 0; l < derivatives.at(j).weights.cols; ++l) {
                                 derivatives.at(j).weights.at(k, l) += layers.at(j)->getNeurons().at(l).activation * errors.at(j).at(k);
                             }
-                        }
-                    }
-                }
-
-                // Now that we have the sum of all the derivatives, divide it by the number of training samples
-                for (size_t i = 0; i < derivatives.size(); ++i) {
-                    for (size_t j = 0; j < derivatives.at(i).biases.size(); ++j) {
-                        derivatives.at(i).biases.at(j) /= batch_size;
-                    }
-
-                    for (size_t j = 0; j < derivatives.at(i).weights.getRows(); ++j) {
-                        for (size_t k = 0; k < derivatives.at(i).weights.getCols(); ++k) {
-                            derivatives.at(i).weights.at(j, k) /= batch_size;
                         }
                     }
                 }

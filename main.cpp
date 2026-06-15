@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -11,10 +12,15 @@
 #include <random>
 #include "libMachineLearning.hpp"
 #include <ncurses.h>
+#include <thread>
+#include <future>
 
 #define LEARN_RATE 0.5
 
 #define BATCH_SIZE 1000
+#define NUM_THREADS 1
+
+std::mutex gil;
 
 enum BreakReason {
     Iterations, Magnitude, Exit
@@ -179,75 +185,141 @@ void initializeLayers(std::mt19937& rng, MachineLearning::Model& model) {
     }
 }
 
-BreakReason trainModel(MachineLearning::Model& model) {
+
+struct BackPropParams {
+    std::vector<MachineLearning::ParameterStruct>& derivatives;
+    std::vector<std::vector<double>>& errors;
+    std::vector<double>& expected;
+    const std::vector<size_t>& trainingDataIndicies;
+    const size_t min;
+    const size_t max;
+};
+
+void multiThreadBackPropagate(std::vector<MachineLearning::ParameterStruct> & accumulator, MachineLearning::Model& model, BackPropParams& params) {
+    std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(params.derivatives, params.errors, params.expected, params.trainingDataIndicies, params.min, params.max);
+
+    gil.lock();
+    for (size_t i = 0; i < accumulator.size(); ++i) {
+        for (size_t j = 0; j < accumulator.at(i).weights.rows; ++j) {
+            for (size_t k = 0; k < accumulator.at(i).weights.cols; ++k) {
+                accumulator.at(i).weights.at(j,k) += s.at(i).weights.at(j,k);
+            }
+        }
+
+        for (size_t j = 0; j < accumulator.at(i).biases.size(); ++j) {
+            accumulator.at(i).biases.at(j) += s.at(i).biases.at(j);
+        }
+    }
+    gil.unlock();
+}
+
+BreakReason trainModel(MachineLearning::Model& masterModel) {
     std::cout << "Reading testing data..." << std::endl;
     auto testingData = readData("testingData");
 
-    initscr();
-    clear();
-    timeout(0); // Switch to non-blocking input
-
+    // initscr();
+    // clear();
+    // timeout(0); // Switch to non-blocking input
     BreakReason reason = Iterations;
 
-    std::vector<double> expected(10);
+    std::vector<MachineLearning::ParameterStruct> derivativeAccumulator(masterModel.layers.size()-1);
 
-    std::vector<MachineLearning::ParameterStruct> derivatives(model.layers.size()-1);
-    for (size_t j = 1; j < model.layers.size(); ++j) {
-        derivatives.at(j-1).biases = std::vector<double>(model.layers.at(j)->getBiases().size());
-        derivatives.at(j-1).weights = MachineLearning::Matrix(model.layers.at(j)->getWeights().getRows(), model.layers.at(j)->getWeights().getCols());
+    for (size_t j = 1; j < masterModel.layers.size(); ++j) {
+        derivativeAccumulator.at(j-1).biases = std::vector<double>(masterModel.layers.at(j)->getBiases().size());
+        derivativeAccumulator.at(j-1).weights = MachineLearning::Matrix(masterModel.layers.at(j)->getWeights().getRows(), masterModel.layers.at(j)->getWeights().getCols());
     }
 
-    std::vector<std::vector<double>> errors(model.layers.size()-1);
-    for (size_t i = 0; i < errors.size(); ++i) {
-        errors[i] = std::vector<double>(model.layers.at(i+1)->getNeurons().size());
+    std::array<MachineLearning::Model, NUM_THREADS> threadModels;
+    std::array<std::vector<double>, NUM_THREADS> expected;
+    std::array<std::vector<MachineLearning::ParameterStruct>, NUM_THREADS> derivatives;
+    std::array<std::vector<std::vector<double>>, NUM_THREADS> errors;
+    std::array<std::pair<size_t, size_t>, NUM_THREADS> minMaxPairs;
+    std::array<std::thread, NUM_THREADS> threads;
+
+    for (size_t i = 0; i < NUM_THREADS; ++i) {
+        threadModels[i] = MachineLearning::Model(masterModel);
+        threadModels[i].linkLayers();
+        threadModels[i].prepare();
+        expected[i] = std::vector<double>(10);
+        derivatives[i] = std::vector<MachineLearning::ParameterStruct>(masterModel.layers.size()-1);
+        errors[i] = std::vector<std::vector<double>>(masterModel.layers.size()-1);
+
+        for (size_t j = 1; j < masterModel.layers.size(); ++j) {
+            derivatives[i].at(j-1).biases = std::vector<double>(masterModel.layers.at(j)->getBiases().size());
+            derivatives[i].at(j-1).weights = MachineLearning::Matrix(masterModel.layers.at(j)->getWeights().rows, masterModel.layers.at(j)->getWeights().cols);
+
+            errors[i].at(j-1) = std::vector<double>(masterModel.layers.at(j)->getNeurons().size());
+        }
+        minMaxPairs[i].first = (i*BATCH_SIZE)/NUM_THREADS;
+        minMaxPairs[i].second = ((i+1)*BATCH_SIZE)/NUM_THREADS;
     }
 
-    std::vector<size_t> trainingDataIndicies(model.trainingData.size());
+    std::vector<size_t> trainingDataIndicies(masterModel.trainingData.size());
     for (size_t i = 0; i < trainingDataIndicies.size(); ++i) {
         trainingDataIndicies[i] = i;
     }
 
-    model.prepare();
+    masterModel.prepare();
 
     for (size_t i = 0; i < 999999; ++i) {
-        std::vector<MachineLearning::ParameterStruct> s = model.backPropagate(derivatives, errors, expected, trainingDataIndicies, BATCH_SIZE);
-
+        // std::vector<MachineLearning::ParameterStruct> s = masterModel.backPropagate(derivatives, errors, expected, trainingDataIndicies, BATCH_SIZE);
+        const auto& s = derivativeAccumulator;
         // Reset derivatives, errors, and expected
-        for (size_t j = 0; j < errors.size(); ++j) {
-            for (size_t k = 0; k < errors[j].size(); ++k) {
-                errors[j][k] = 0;
+        for (size_t tr = 0; tr < NUM_THREADS; ++tr) {
+            BackPropParams params = {derivatives[i], errors[i], expected[i], trainingDataIndicies, minMaxPairs[i].first, minMaxPairs[i].second};
+            // threads[tr] = std::thread(multiThreadBackPropagate, std::ref(derivativeAccumulator), std::ref(threadModels[i]), std::ref(params));
+            multiThreadBackPropagate(derivativeAccumulator, threadModels[i], params);
+            for (size_t j = 0; j < errors.size(); ++j) {
+                for (size_t k = 0; k < errors[j].size(); ++k) {
+                    errors[tr][j][k] = 0;
+                }
+            }
+
+            for (size_t j = 0; j < expected.size(); ++j) {
+                expected[tr][j] = 0;
             }
         }
 
-        for (size_t j = 0; j < expected.size(); ++j) {
-            expected[j] = 0;
-        }
+        for (auto& tr : threads) tr.join();
 
         // Use the gradient descent
         double mag = 0;
         for (size_t j = 0; j < s.size(); ++j) {
             for (size_t k = 0; k < s.at(j).weights.rows; ++k) {
                 for (size_t l = 0; l < s.at(j).weights.cols; ++l) {
-                    model.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.at(k, l) * LEARN_RATE;
-                    derivatives[j].weights.at(k, l) = 0;
-                    mag += s.at(j).weights.at(k,l) * s.at(j).weights.at(k,l);
+                    derivativeAccumulator[j].weights.at(k, l) /= BATCH_SIZE;
+                    masterModel.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.get(k, l) * LEARN_RATE;
+                    mag += s.at(j).weights.get(k,l) * s.at(j).weights.get(k,l);
+                    derivativeAccumulator[j].weights.at(k, l) = 0;
+                    for (size_t m = 0; m < NUM_THREADS; ++m) {
+                        derivatives[m][j].weights.at(k,l) = 0;
+                    }
                 }
             }
 
             for (size_t k = 0; k < s.at(j).biases.size(); ++k) {
-                model.layers.at(j+1)->biasAt(k) -= s.at(j).biases.at(k) * LEARN_RATE;
-                derivatives[j].biases[k] = 0;
+                derivativeAccumulator[j].biases.at(k) /= BATCH_SIZE;
+                masterModel.layers.at(j+1)->biasAt(k) -= s.at(j).biases.at(k) * LEARN_RATE;
                 mag += s.at(j).biases.at(k) * s.at(j).biases.at(k);
+                derivativeAccumulator[j].biases[k] = 0;
+                for (size_t m = 0; m < NUM_THREADS; ++m) {
+                    derivatives[m][j].biases.at(k) = 0;
+                }
             }
         }
 
+        for (size_t j = 0; j < NUM_THREADS; ++j) {
+            threadModels[j].copyParametersFrom(masterModel);
+            threadModels[j].linkLayers();
+            threadModels[j].prepare();
+        }
         mag = std::sqrt(mag);
 
         clear();
         move(0,0);
         printw("Number of iterations: %lu\n", i+1);
         printw("Current gradient magnitude: %g\n", mag);
-        printw("Current cost: %g\n", model.computeCost(trainingDataIndicies, expected, BATCH_SIZE));
+        printw("Current cost: %g\n", masterModel.computeCost(trainingDataIndicies, expected[0], BATCH_SIZE)); // Just use expected at 0
         printw("Press q to quit training\n");
         printw("Press t to pause and test accuracy with testing data\n");
         if (mag < 1e-7) {
@@ -266,22 +338,22 @@ BreakReason trainModel(MachineLearning::Model& model) {
             size_t numCorrect = 0;
             for (size_t i = 0; i < testingData.size(); ++i) {
                 char lab = testingData.at(i).second;
-                for (size_t j = 0; j < model.layers.at(0)->getNeurons().size(); ++j) {
-                    model.layers.at(0)->neuronAt(j).activation = testingData.at(i).first.at(j / 28).at(j % 28);
+                for (size_t j = 0; j < masterModel.layers.at(0)->getNeurons().size(); ++j) {
+                    masterModel.layers.at(0)->neuronAt(j).activation = testingData.at(i).first.at(j / 28).at(j % 28);
                 }
 
-                for (size_t j = 1; j < model.layers.size(); ++j) {
-                    model.layers.at(j)->compute();
+                for (size_t j = 1; j < masterModel.layers.size(); ++j) {
+                    masterModel.layers.at(j)->compute();
                 }
 
                 double lastLayerSum = 0;
-                for (size_t j = 0; j < model.layers.at(model.layers.size()-1)->getNeurons().size(); ++j) {
-                    lastLayerSum += model.layers.at(model.layers.size()-1)->getNeurons().at(j).activation;
+                for (size_t j = 0; j < masterModel.layers.at(masterModel.layers.size()-1)->getNeurons().size(); ++j) {
+                    lastLayerSum += masterModel.layers.at(masterModel.layers.size()-1)->getNeurons().at(j).activation;
                 }
 
                 std::pair<size_t, double> prediction = {0,-INFINITY};
-                for (size_t j = 0; j < model.layers.at(model.layers.size()-1)->getNeurons().size(); ++j) {
-                    const auto& lay = model.layers.at(model.layers.size()-1);
+                for (size_t j = 0; j < masterModel.layers.at(masterModel.layers.size()-1)->getNeurons().size(); ++j) {
+                    const auto& lay = masterModel.layers.at(masterModel.layers.size()-1);
 
                     if (lay->getNeurons().at(j).activation/lastLayerSum > prediction.second) {
                         prediction = {j, lay->getNeurons().at(j).activation/lastLayerSum};
