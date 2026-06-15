@@ -18,7 +18,7 @@
 #define LEARN_RATE 0.5
 
 #define BATCH_SIZE 1000
-#define NUM_THREADS 1
+#define NUM_THREADS 5
 
 std::mutex gil;
 
@@ -216,10 +216,11 @@ void multiThreadBackPropagate(std::vector<MachineLearning::ParameterStruct> & ac
 BreakReason trainModel(MachineLearning::Model& masterModel) {
     std::cout << "Reading testing data..." << std::endl;
     auto testingData = readData("testingData");
+    std::cout << "Done reading testing data" << std::endl;
 
-    // initscr();
-    // clear();
-    // timeout(0); // Switch to non-blocking input
+    initscr();
+    clear();
+    timeout(0); // Switch to non-blocking input
     BreakReason reason = Iterations;
 
     std::vector<MachineLearning::ParameterStruct> derivativeAccumulator(masterModel.layers.size()-1);
@@ -266,21 +267,23 @@ BreakReason trainModel(MachineLearning::Model& masterModel) {
         const auto& s = derivativeAccumulator;
         // Reset derivatives, errors, and expected
         for (size_t tr = 0; tr < NUM_THREADS; ++tr) {
-            BackPropParams params = {derivatives[i], errors[i], expected[i], trainingDataIndicies, minMaxPairs[i].first, minMaxPairs[i].second};
-            // threads[tr] = std::thread(multiThreadBackPropagate, std::ref(derivativeAccumulator), std::ref(threadModels[i]), std::ref(params));
-            multiThreadBackPropagate(derivativeAccumulator, threadModels[i], params);
-            for (size_t j = 0; j < errors.size(); ++j) {
+            BackPropParams params = {derivatives[tr], errors[tr], expected[tr], trainingDataIndicies, minMaxPairs[tr].first, minMaxPairs[tr].second};
+            threads[tr] = std::thread(multiThreadBackPropagate, std::ref(derivativeAccumulator), std::ref(threadModels[tr]), std::ref(params));
+            // multiThreadBackPropagate(derivativeAccumulator, threadModels[tr], params);
+        }
+
+        for (size_t tr = 0 ; tr < NUM_THREADS; ++tr) {
+            threads[tr].join();
+            for (size_t j = 0; j < errors[0].size(); ++j) {
                 for (size_t k = 0; k < errors[j].size(); ++k) {
                     errors[tr][j][k] = 0;
                 }
             }
 
-            for (size_t j = 0; j < expected.size(); ++j) {
+            for (size_t j = 0; j < expected[0].size(); ++j) {
                 expected[tr][j] = 0;
             }
         }
-
-        for (auto& tr : threads) tr.join();
 
         // Use the gradient descent
         double mag = 0;
