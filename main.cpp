@@ -228,6 +228,7 @@ BreakReason trainModel(MachineLearning::Model& model) {
         for (size_t j = 0; j < s.size(); ++j) {
             for (size_t k = 0; k < s.at(j).weights.rows; ++k) {
                 for (size_t l = 0; l < s.at(j).weights.cols; ++l) {
+                    s[j].weights.at(k,l) /= BATCH_SIZE;
                     model.layers.at(j+1)->weightAt(k, l) -= s.at(j).weights.at(k, l) * LEARN_RATE;
                     derivatives[j].weights.at(k, l) = 0;
                     mag += s.at(j).weights.at(k,l) * s.at(j).weights.at(k,l);
@@ -235,6 +236,7 @@ BreakReason trainModel(MachineLearning::Model& model) {
             }
 
             for (size_t k = 0; k < s.at(j).biases.size(); ++k) {
+                s[j].biases.at(k) /= BATCH_SIZE;
                 model.layers.at(j+1)->biasAt(k) -= s.at(j).biases.at(k) * LEARN_RATE;
                 derivatives[j].biases[k] = 0;
                 mag += s.at(j).biases.at(k) * s.at(j).biases.at(k);

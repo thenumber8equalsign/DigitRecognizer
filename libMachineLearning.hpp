@@ -437,19 +437,6 @@ namespace MachineLearning {
                     }
                 }
 
-                // Now that we have the sum of all the derivatives, divide it by the number of training samples
-                for (size_t i = 0; i < derivatives.size(); ++i) {
-                    for (size_t j = 0; j < derivatives.at(i).biases.size(); ++j) {
-                        derivatives.at(i).biases.at(j) /= batch_size;
-                    }
-
-                    for (size_t j = 0; j < derivatives.at(i).weights.getRows(); ++j) {
-                        for (size_t k = 0; k < derivatives.at(i).weights.getCols(); ++k) {
-                            derivatives.at(i).weights.at(j, k) /= batch_size;
-                        }
-                    }
-                }
-
                 return derivatives;
             }
 
