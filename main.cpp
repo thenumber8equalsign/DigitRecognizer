@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
@@ -267,6 +268,7 @@ BreakReason trainModel(MachineLearning::Model& masterModel) {
         const auto& s = derivativeAccumulator;
         // Reset derivatives, errors, and expected
         for (size_t tr = 0; tr < NUM_THREADS; ++tr) {
+            std::shuffle(trainingDataIndicies.begin(), trainingDataIndicies.end(), MachineLearning::rng);
             BackPropParams params = {derivatives[tr], errors[tr], expected[tr], trainingDataIndicies, minMaxPairs[tr].first, minMaxPairs[tr].second};
             threads[tr] = std::thread(multiThreadBackPropagate, std::ref(derivativeAccumulator), std::ref(threadModels[tr]), std::ref(params));
             // multiThreadBackPropagate(derivativeAccumulator, threadModels[tr], params);
