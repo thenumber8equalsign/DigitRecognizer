@@ -273,13 +273,13 @@ BreakReason trainModel(MachineLearning::Model& masterModel) {
 
         for (size_t tr = 0 ; tr < NUM_THREADS; ++tr) {
             threads[tr].join();
-            for (size_t j = 0; j < errors[0].size(); ++j) {
-                for (size_t k = 0; k < errors[j].size(); ++k) {
+            for (size_t j = 0; j < errors[tr].size(); ++j) {
+                for (size_t k = 0; k < errors[tr][j].size(); ++k) {
                     errors[tr][j][k] = 0;
                 }
             }
 
-            for (size_t j = 0; j < expected[0].size(); ++j) {
+            for (size_t j = 0; j < expected[tr].size(); ++j) {
                 expected[tr][j] = 0;
             }
         }
