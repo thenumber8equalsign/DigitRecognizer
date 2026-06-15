@@ -14,12 +14,11 @@
 #include "libMachineLearning.hpp"
 #include <ncurses.h>
 #include <thread>
-#include <future>
 
 #define LEARN_RATE 0.5
 
 #define BATCH_SIZE 1000
-#define NUM_THREADS 5
+#define NUM_THREADS 12
 
 std::mutex gil;
 
