@@ -7,7 +7,8 @@ namespace MachineLearning {
     }
 
     double sigmoidDerivative(const double x) {
-        return std::exp(-x) / ((1.0 + std::exp(-x)) * (1.0 + std::exp(-x)));
+        const double s = std::exp(-x);
+        return s / ((1.0 + s) * (1.0 + s));
     }
 
     std::vector<Neuron> sigmoid(const std::vector<double>& v) {
